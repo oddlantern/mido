@@ -7,14 +7,23 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 //#region src/discovery/scanner.ts
 /** Directories to always skip during scanning */
 const SKIP_DIRS = new Set([
-	"node_modules",
 	".dart_tool",
-	"build",
-	"dist",
 	".git",
 	".husky",
 	".idea",
-	".vscode"
+	".mido",
+	".symlinks",
+	".vscode",
+	"android",
+	"build",
+	"dist",
+	"example",
+	"ios",
+	"linux",
+	"macos",
+	"node_modules",
+	"web",
+	"windows"
 ]);
 /** Manifest filenames and their ecosystem names */
 const MANIFEST_MAP = new Map([
@@ -45,22 +54,6 @@ function loadGitignoreDirs(root) {
 	return dirs;
 }
 /**
-* Check if a package.json at root level is a workspace root (not a real package).
-*/
-async function isWorkspaceRoot(manifestPath) {
-	try {
-		const raw = await readFile(manifestPath, "utf-8");
-		const parsed = JSON.parse(raw);
-		if (parsed["workspaces"]) return true;
-		if (parsed["private"] === true) {
-			if (!existsSync(join(manifestPath, "..", "src"))) return true;
-		}
-		return false;
-	} catch {
-		return false;
-	}
-}
-/**
 * Scan a repository root for ecosystem markers.
 * Returns all discovered packages (both supported and unsupported).
 */
@@ -86,14 +79,9 @@ async function scanRepo(root) {
 			}
 			if (!stat.isDirectory()) continue;
 			for (const [manifest, ecosystem] of MANIFEST_MAP) {
-				const manifestPath = join(fullPath, manifest);
-				if (!existsSync(manifestPath)) continue;
-				const relPath = relative(root, fullPath);
-				if (manifest === "package.json" && relPath === ".") {
-					if (await isWorkspaceRoot(manifestPath)) continue;
-				}
+				if (!existsSync(join(fullPath, manifest))) continue;
 				packages.push({
-					path: relPath,
+					path: relative(root, fullPath),
 					ecosystem,
 					manifest,
 					supported: SUPPORTED_ECOSYSTEMS.has(ecosystem)
@@ -101,19 +89,6 @@ async function scanRepo(root) {
 			}
 			await walk(fullPath);
 		}
-	}
-	for (const [manifest, ecosystem] of MANIFEST_MAP) {
-		const manifestPath = join(root, manifest);
-		if (!existsSync(manifestPath)) continue;
-		if (manifest === "package.json") {
-			if (await isWorkspaceRoot(manifestPath)) continue;
-		}
-		packages.push({
-			path: ".",
-			ecosystem,
-			manifest,
-			supported: SUPPORTED_ECOSYSTEMS.has(ecosystem)
-		});
 	}
 	await walk(root);
 	return packages;
@@ -313,4 +288,4 @@ function groupByEcosystem(packages) {
 //#endregion
 export { runInit };
 
-//# sourceMappingURL=init-By2M_cDZ.js.map
+//# sourceMappingURL=init-BPkQoNha.js.map
