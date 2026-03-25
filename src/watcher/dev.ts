@@ -1,6 +1,7 @@
 import { join, relative } from 'node:path';
 
 import chokidar from 'chokidar';
+import type { FSWatcher } from 'chokidar';
 
 import { loadConfig } from '../config/loader.js';
 import { buildWorkspaceGraph } from '../graph/workspace.js';
@@ -12,8 +13,10 @@ import { PluginRegistry } from '../plugins/registry.js';
 import type { DomainPlugin, EcosystemPlugin, ExecuteResult } from '../plugins/types.js';
 import { detectPackageManager } from './pm-detect.js';
 import { createDebouncer } from './debouncer.js';
+import type { Debouncer } from './debouncer.js';
 
 const MAGENTA = '\x1b[35m';
+const CONFIG_FILENAME = 'mido.yml';
 
 interface ResolvedBridge {
   readonly bridge: Bridge;
@@ -26,6 +29,18 @@ interface ResolvedBridge {
 
 export interface DevOptions {
   readonly verbose?: boolean | undefined;
+}
+
+/** Mutable state for the running watcher session */
+interface WatcherSession {
+  watcher: FSWatcher;
+  bridgeDebouncers: Map<ResolvedBridge, Debouncer>;
+  configDebouncer: Debouncer;
+  resolved: readonly ResolvedBridge[];
+  graph: WorkspaceGraph;
+  registry: PluginRegistry;
+  root: string;
+  pm: string;
 }
 
 function formatMs(ms: number): string {
@@ -117,14 +132,10 @@ async function resolveBridges(
   return resolved;
 }
 
-function printStartup(
+function printBridgeSummary(
   resolved: readonly ResolvedBridge[],
   registry: PluginRegistry,
 ): void {
-  console.log(
-    `\n${CYAN}${BOLD}mido dev${RESET} ${DIM}\u2014 watching ${resolved.length} bridge(s)${RESET}\n`,
-  );
-
   for (const r of resolved) {
     const artifact = r.bridge.artifact;
     const sourceLabel = r.source.path;
@@ -165,7 +176,16 @@ function printStartup(
     }
     console.log();
   }
+}
 
+function printStartup(
+  resolved: readonly ResolvedBridge[],
+  registry: PluginRegistry,
+): void {
+  console.log(
+    `\n${CYAN}${BOLD}mido dev${RESET} ${DIM}\u2014 watching ${resolved.length} bridge(s)${RESET}\n`,
+  );
+  printBridgeSummary(resolved, registry);
   console.log(`  ${DIM}Waiting for changes...${RESET}\n`);
 }
 
@@ -297,175 +317,244 @@ function matchesBridge(relPath: string, bridge: ResolvedBridge): boolean {
   return false;
 }
 
+/** Resolve watch patterns to base directories for chokidar */
+function resolveWatchDirs(
+  resolved: readonly ResolvedBridge[],
+  root: string,
+): readonly string[] {
+  const watchDirs = new Set<string>();
+  for (const r of resolved) {
+    for (const pattern of r.watchPatterns) {
+      const baseDir = pattern.replace(/\/?\*\*.*$/, '') || '.';
+      watchDirs.add(join(root, baseDir));
+    }
+  }
+  return [...watchDirs];
+}
+
+/** Tear down an existing watcher session */
+function teardownSession(session: WatcherSession): void {
+  for (const debouncer of session.bridgeDebouncers.values()) {
+    debouncer.cancel();
+  }
+  session.configDebouncer.cancel();
+  session.watcher.close();
+}
+
 /**
  * Run the mido dev watcher daemon.
  *
  * Loads config, builds graph, discovers plugins, watches files,
- * and re-runs bridge pipelines on changes.
+ * and re-runs bridge pipelines on changes. Watches mido.yml and
+ * reloads everything when the config changes.
  */
 export async function runDev(
   parsers: ParserRegistry,
   options: DevOptions = {},
 ): Promise<number> {
   const verbose = options.verbose ?? false;
-  const { config, root } = await loadConfig();
-  const graph = await buildWorkspaceGraph(config, root, parsers);
-  const pm = detectPackageManager(root);
 
-  if (verbose) {
-    logDebug(`workspace root: ${root}`);
-    logDebug(`package manager: ${pm}`);
-    logDebug(`packages in graph: ${graph.packages.size}`);
-  }
+  let session: WatcherSession | undefined;
 
-  const { ecosystem, domain } = loadPlugins();
-  const registry = new PluginRegistry(ecosystem, domain);
-
-  if (graph.bridges.length === 0) {
-    console.error(
-      `${YELLOW}warn:${RESET} No bridges defined in mido.yml. Nothing to watch.`,
-    );
-    return 1;
-  }
-
-  const resolved = await resolveBridges(graph.bridges, graph.packages, registry, root);
-  if (resolved.length === 0) {
-    console.error(`${RED}error:${RESET} No bridges could be resolved.`);
-    return 1;
-  }
-
-  printStartup(resolved, registry);
-
-  // Resolve watch patterns to base directories for chokidar.
-  // Chokidar watches directories recursively by default — glob patterns
-  // like "src/**" don't work reliably with ignoreInitial: true.
-  // We strip the glob suffix to get the directory path and let chokidar
-  // handle recursion natively. The full patterns are still used for
-  // matching which bridge a file change belongs to.
-  const watchDirs = new Set<string>();
-  for (const r of resolved) {
-    for (const pattern of r.watchPatterns) {
-      const baseDir = pattern.replace(/\/?\*\*.*$/, '') || '.';
-      const absDir = join(root, baseDir);
-      watchDirs.add(absDir);
-    }
-  }
-  const allWatchPaths = [...watchDirs];
-
-  if (verbose) {
-    logDebug(`chokidar watching ${allWatchPaths.length} dir(s):`);
-    for (const p of allWatchPaths) {
-      logDebug(`  ${p}`);
-    }
-  }
-
-  // Track running state to prevent overlapping executions
-  let running = false;
-  let pending: Set<ResolvedBridge> = new Set();
-
-  async function processPending(): Promise<void> {
-    if (running) {
-      return;
-    }
-    running = true;
-
-    while (pending.size > 0) {
-      const batch = [...pending];
-      pending = new Set();
-
-      for (const item of batch) {
-        await executeBridge(item, registry, graph, root, pm);
-      }
-    }
-
-    running = false;
-  }
-
-  // Create per-bridge debouncers
-  const bridgeDebouncers = new Map<ResolvedBridge, ReturnType<typeof createDebouncer>>();
-  for (const r of resolved) {
-    const debouncer = createDebouncer(() => {
-      if (verbose) {
-        logDebug(`debouncer fired for bridge: ${r.bridge.source} \u2192 ${r.bridge.target}`);
-      }
-      pending.add(r);
-      processPending();
-    });
-    bridgeDebouncers.set(r, debouncer);
-  }
-
-  // Start chokidar watcher
-  const watcher = chokidar.watch(allWatchPaths, {
-    ignoreInitial: true,
-    ignored: [
-      '**/node_modules/**',
-      '**/.dart_tool/**',
-      '**/build/**',
-      '**/dist/**',
-      '**/.symlinks/**',
-    ],
-    awaitWriteFinish: {
-      stabilityThreshold: 300,
-      pollInterval: 100,
-    },
-  });
-
-  if (verbose) {
-    watcher.on('ready', () => {
-      logDebug('chokidar ready \u2014 watcher initialized');
-      const watched = watcher.getWatched();
-      let fileCount = 0;
-      for (const files of Object.values(watched)) {
-        fileCount += files.length;
-      }
-      logDebug(`chokidar tracking ${Object.keys(watched).length} dir(s), ${fileCount} file(s)`);
-    });
-  }
-
-  function handleFileEvent(event: string, filePath: string): void {
-    const relPath = relative(root, filePath);
+  async function startSession(): Promise<WatcherSession | undefined> {
+    const { config, root } = await loadConfig();
+    const graph = await buildWorkspaceGraph(config, root, parsers);
+    const pm = detectPackageManager(root);
 
     if (verbose) {
-      logDebug(`chokidar ${event}: ${filePath}`);
+      logDebug(`workspace root: ${root}`);
+      logDebug(`package manager: ${pm}`);
+      logDebug(`packages in graph: ${graph.packages.size}`);
     }
 
-    logChange(relPath);
+    const { ecosystem, domain } = loadPlugins();
+    const registry = new PluginRegistry(ecosystem, domain);
 
-    let matched = false;
+    if (graph.bridges.length === 0) {
+      console.error(
+        `${YELLOW}warn:${RESET} No bridges defined in mido.yml. Nothing to watch.`,
+      );
+      return undefined;
+    }
+
+    const resolved = await resolveBridges(graph.bridges, graph.packages, registry, root);
+    if (resolved.length === 0) {
+      console.error(`${RED}error:${RESET} No bridges could be resolved.`);
+      return undefined;
+    }
+
+    // Resolve watch dirs for bridges + mido.yml itself
+    const bridgeWatchDirs = resolveWatchDirs(resolved, root);
+    const configPath = join(root, CONFIG_FILENAME);
+    const allWatchPaths = [...bridgeWatchDirs, configPath];
+
+    if (verbose) {
+      logDebug(`chokidar watching ${allWatchPaths.length} path(s):`);
+      for (const p of allWatchPaths) {
+        logDebug(`  ${p}`);
+      }
+    }
+
+    // Track running state to prevent overlapping executions
+    let running = false;
+    let pending: Set<ResolvedBridge> = new Set();
+
+    async function processPending(): Promise<void> {
+      if (running) {
+        return;
+      }
+      running = true;
+
+      while (pending.size > 0) {
+        const batch = [...pending];
+        pending = new Set();
+
+        for (const item of batch) {
+          await executeBridge(item, registry, graph, root, pm);
+        }
+      }
+
+      running = false;
+    }
+
+    // Create per-bridge debouncers
+    const bridgeDebouncers = new Map<ResolvedBridge, Debouncer>();
     for (const r of resolved) {
-      if (matchesBridge(relPath, r)) {
-        matched = true;
+      const debouncer = createDebouncer(() => {
         if (verbose) {
-          logDebug(`  matched bridge: ${r.bridge.source} \u2192 ${r.bridge.target} (triggering debouncer)`);
+          logDebug(`debouncer fired for bridge: ${r.bridge.source} \u2192 ${r.bridge.target}`);
         }
-        const debouncer = bridgeDebouncers.get(r);
-        if (debouncer) {
-          debouncer.trigger();
+        pending.add(r);
+        processPending();
+      });
+      bridgeDebouncers.set(r, debouncer);
+    }
+
+    // Config reload debouncer — fires when mido.yml changes
+    const configDebouncer = createDebouncer(async () => {
+      logStep('mido.yml changed \u2014 reloading config...');
+
+      if (session) {
+        teardownSession(session);
+      }
+
+      try {
+        const newSession = await startSession();
+        if (newSession) {
+          session = newSession;
+          console.log();
+          printBridgeSummary(newSession.resolved, newSession.registry);
+          console.log(`  ${DIM}Waiting for changes...${RESET}\n`);
+        } else {
+          logFail('Config reload failed \u2014 no valid bridges. Fix mido.yml and save again.');
         }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        logFail(`Config reload failed: ${msg}`);
+        logWaiting();
+      }
+    }, 500);
+
+    // Start chokidar watcher
+    const watcher = chokidar.watch(allWatchPaths, {
+      ignoreInitial: true,
+      ignored: [
+        '**/node_modules/**',
+        '**/.dart_tool/**',
+        '**/build/**',
+        '**/dist/**',
+        '**/.symlinks/**',
+      ],
+      awaitWriteFinish: {
+        stabilityThreshold: 300,
+        pollInterval: 100,
+      },
+    });
+
+    if (verbose) {
+      watcher.on('ready', () => {
+        logDebug('chokidar ready \u2014 watcher initialized');
+        const watched = watcher.getWatched();
+        let fileCount = 0;
+        for (const files of Object.values(watched)) {
+          fileCount += files.length;
+        }
+        logDebug(`chokidar tracking ${Object.keys(watched).length} dir(s), ${fileCount} file(s)`);
+      });
+    }
+
+    function handleFileEvent(event: string, filePath: string): void {
+      const relPath = relative(root, filePath);
+
+      if (verbose) {
+        logDebug(`chokidar ${event}: ${filePath}`);
+      }
+
+      // Check if it's the config file
+      if (relPath === CONFIG_FILENAME) {
+        if (verbose) {
+          logDebug('config file changed \u2014 scheduling reload');
+        }
+        configDebouncer.trigger();
+        return;
+      }
+
+      logChange(relPath);
+
+      let matched = false;
+      for (const r of resolved) {
+        if (matchesBridge(relPath, r)) {
+          matched = true;
+          if (verbose) {
+            logDebug(`  matched bridge: ${r.bridge.source} \u2192 ${r.bridge.target} (triggering debouncer)`);
+          }
+          const debouncer = bridgeDebouncers.get(r);
+          if (debouncer) {
+            debouncer.trigger();
+          }
+        }
+      }
+
+      if (verbose && !matched) {
+        logDebug(`  no bridge matched for ${relPath}`);
       }
     }
 
-    if (verbose && !matched) {
-      logDebug(`  no bridge matched for ${relPath}`);
-    }
+    watcher.on('change', (path: string) => handleFileEvent('change', path));
+    watcher.on('add', (path: string) => handleFileEvent('add', path));
+    watcher.on('unlink', (path: string) => {
+      if (verbose) {
+        logDebug(`chokidar unlink: ${path}`);
+      }
+    });
+
+    return {
+      watcher,
+      bridgeDebouncers,
+      configDebouncer,
+      resolved,
+      graph,
+      registry,
+      root,
+      pm,
+    };
   }
 
-  watcher.on('change', (path: string) => handleFileEvent('change', path));
-  watcher.on('add', (path: string) => handleFileEvent('add', path));
-  watcher.on('unlink', (path: string) => {
-    if (verbose) {
-      logDebug(`chokidar unlink: ${path}`);
-    }
-  });
+  // Initial startup
+  session = await startSession();
+  if (!session) {
+    return 1;
+  }
 
-  // Handle graceful shutdown — resolve the promise instead of process.exit
+  printStartup(session.resolved, session.registry);
+
+  // Handle graceful shutdown
   return new Promise<number>((resolve) => {
     const cleanup = (): void => {
       console.log(`\n  ${DIM}Shutting down...${RESET}`);
-      for (const debouncer of bridgeDebouncers.values()) {
-        debouncer.cancel();
+      if (session) {
+        teardownSession(session);
       }
-      watcher.close();
       resolve(0);
     };
 

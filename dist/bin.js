@@ -197,13 +197,13 @@ async function main() {
 		process.exit(exitCode);
 	}
 	if (command === "init") {
-		const { runInit } = await import("./init-CUBYRIhg.js");
+		const { runInit } = await import("./init-Bj_4_bZU.js");
 		const exitCode = await runInit(process.cwd(), parsers);
 		process.exit(exitCode);
 	}
 	if (command === "dev") {
 		const verbose = args.includes("--verbose");
-		const { runDev } = await import("./dev-DdtKW5m3.js");
+		const { runDev } = await import("./dev-B7s1vOZr.js");
 		const exitCode = await runDev(parsers, { verbose });
 		process.exit(exitCode);
 	}
