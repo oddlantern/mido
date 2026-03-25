@@ -27,7 +27,18 @@ src/
     loader.ts            # Load builtin (and future external) plugins
     builtin/
       exec.ts            # Shared runCommand helper + isRecord guard
-      openapi.ts         # Domain plugin: OpenAPI spec export, prepare, downstream delegation
+      openapi/
+        plugin.ts        # Domain plugin: OpenAPI spec export, prepare, downstream delegation
+        exporter.ts      # Export engine: boot server, fetch spec, write to disk
+        adapters/
+          types.ts       # FrameworkAdapter interface
+          index.ts       # Adapter registry + detectAdapter()
+          elysia.ts      # Elysia adapter (spec at /openapi/json)
+          hono.ts        # Hono adapter (spec at /openapi)
+          express.ts     # Express adapter (spec at /api-docs)
+          fastify.ts     # Fastify adapter (spec at /documentation/json)
+          koa.ts         # Koa adapter (spec at /swagger.json)
+          nestjs.ts      # NestJS adapter (spec at /api-docs-json)
       typescript.ts      # Ecosystem plugin: TS actions, openapi-typescript direct invocation
       dart.ts            # Ecosystem plugin: Dart actions, swagger_parser + build_runner
   checks/
@@ -65,6 +76,8 @@ src/
 - **Prepare step is auto-detected.** The openapi plugin checks source package scripts for spec preparation (e.g., `openapi:prepare`, or `prepare` containing "spec"/"openapi"/"dart"). This runs between export and downstream generation as a discrete pipeline step.
 - **Plugins inform watch paths during init.** Domain plugins suggest watch paths based on framework detection (e.g., mido-openapi finds Elysia routes). Ecosystem plugins suggest based on package structure. Suggestions are presented for user confirmation, not applied blindly.
 - **Ecosystem plugins invoke tools directly.** The TypeScript plugin parses existing `generate` scripts to extract `openapi-typescript` invocation parameters (input/output paths) and runs the tool directly instead of delegating to a shell script.
+- **Framework adapters for zero-config export.** The openapi plugin detects server frameworks (Elysia, Hono, Express, Fastify, Koa, NestJS) and their OpenAPI plugins from dependencies. The exporter boots the server on a random free port, fetches the spec from the framework's known endpoint, writes it to disk, and kills the server. No export script needed. The `openapi:export` script is a fallback for unsupported frameworks.
+- **Bridge-level overrides for edge cases.** Bridges support optional `entryFile` (server entry point) and `specPath` (custom spec endpoint) for when auto-detection fails.
 
 ## Bridge Fields
 
@@ -72,6 +85,8 @@ Bridges use `source/target/artifact`:
 - `source` — the package that **produces** the artifact
 - `target` — the package that **consumes** the artifact
 - `artifact` — path to the bridge file (e.g., `openapi.json`)
+- `entryFile` — (optional) server entry file relative to server package dir
+- `specPath` — (optional) custom OpenAPI spec endpoint path
 
 ## Code Rules
 
