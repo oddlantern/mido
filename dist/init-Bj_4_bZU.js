@@ -250,13 +250,23 @@ async function runFirstTime(root, configPath, parsers) {
 		finalSupported = supported.filter((p) => selectedSet.has(p.path));
 	}
 	const finalEcosystems = groupByEcosystem(finalSupported);
-	const bridges = [...await detectBridges(root, finalSupported)];
-	if (bridges.length > 0) {
-		const bridgeLines = bridges.map((b) => `  ${b.source} \u2192 ${b.target} via ${b.artifact}`).join("\n");
-		log.info(`Detected ${bridges.length} bridge(s):\n${bridgeLines}`);
+	const detectedBridges = [...await detectBridges(root, finalSupported)];
+	if (detectedBridges.length > 0) {
+		const bridgeLines = detectedBridges.map((b) => `  ${b.source} \u2192 ${b.target} via ${b.artifact}`).join("\n");
+		log.info(`Detected ${detectedBridges.length} bridge(s):\n${bridgeLines}`);
+	}
+	const bridgesWithWatch = [];
+	for (const b of detectedBridges) {
+		const watch = await promptWatchPaths(b.source);
+		bridgesWithWatch.push({
+			source: b.source,
+			target: b.target,
+			artifact: b.artifact,
+			watch
+		});
 	}
 	const manualBridges = await promptAdditionalBridges(root, finalSupported.map((p) => p.path));
-	bridges.push(...manualBridges);
+	bridgesWithWatch.push(...manualBridges);
 	const envFiles = detectEnvFiles(root, finalSupported);
 	if (envFiles.length >= 2) {
 		const envLines = envFiles.map((e) => `  ${e.path}`).join("\n");
@@ -269,7 +279,7 @@ async function runFirstTime(root, configPath, parsers) {
 		defaultValue: dirName
 	});
 	if (isCancel(nameResult)) handleCancel();
-	await writeFile(configPath, renderYaml(buildConfigObject(nameResult || dirName, finalEcosystems, bridges, envFiles)), "utf-8");
+	await writeFile(configPath, renderYaml(buildConfigObject(nameResult || dirName, finalEcosystems, bridgesWithWatch, envFiles)), "utf-8");
 	log.success(`${CONFIG_FILENAME} written`);
 	const installHooks = await confirm({
 		message: "Install git hooks?",
@@ -369,7 +379,23 @@ async function runReconciliation(root, configPath, parsers) {
 			]
 		});
 		if (isCancel(action)) handleCancel();
-		if (action === "keep") updatedBridges.push(bridge);
+		if (action === "keep") if (!bridge.watch?.length) {
+			const addWatch = await confirm({
+				message: `Add watch paths for this bridge?`,
+				initialValue: false
+			});
+			if (isCancel(addWatch)) handleCancel();
+			if (addWatch) {
+				const watch = await promptWatchPaths(bridge.source);
+				if (watch) {
+					updatedBridges.push({
+						...bridge,
+						watch: [...watch]
+					});
+					configChanged = true;
+				} else updatedBridges.push(bridge);
+			} else updatedBridges.push(bridge);
+		} else updatedBridges.push(bridge);
 		else if (action === "modify") {
 			const modified = await promptModifyBridge(root, existing, bridge);
 			if (modified) {
@@ -384,7 +410,8 @@ async function runReconciliation(root, configPath, parsers) {
 		for (const b of manualBridges) updatedBridges.push({
 			source: b.source,
 			target: b.target,
-			artifact: b.artifact
+			artifact: b.artifact,
+			watch: b.watch?.length ? [...b.watch] : void 0
 		});
 	}
 	if (configChanged || updatedBridges.length !== existingBridges.length) {
@@ -417,6 +444,16 @@ async function runPostInitCheck(parsers) {
 	if (isCancel(fix)) handleCancel();
 	if (fix) await runCheck(parsers, { fix: true });
 }
+async function promptWatchPaths(source) {
+	const watchResult = await text({
+		message: `What files trigger regeneration?`,
+		placeholder: `${source}/**`,
+		defaultValue: ""
+	});
+	if (isCancel(watchResult)) handleCancel();
+	if (!watchResult) return;
+	return watchResult.split(/[,\s]+/).map((p) => p.trim()).filter((p) => p.length > 0);
+}
 async function promptModifyBridge(root, config, current) {
 	const allPaths = getAllPackagePaths(config);
 	const source = await select({
@@ -447,7 +484,8 @@ async function promptModifyBridge(root, config, current) {
 	return {
 		source,
 		target,
-		artifact: relative(root, join(root, artifact))
+		artifact: relative(root, join(root, artifact)),
+		watch: await promptWatchPaths(source)
 	};
 }
 async function promptAdditionalBridges(root, packagePaths) {
@@ -511,11 +549,12 @@ async function promptAdditionalBridges(root, packagePaths) {
 				continue;
 			}
 		}
+		const watch = await promptWatchPaths(source);
 		result.push({
 			source,
 			target,
 			artifact: relArtifact,
-			reason: "manual"
+			watch
 		});
 		log.step(`Bridge: ${source} \u2192 ${target} via ${relArtifact}`);
 		const another = await confirm({
@@ -573,11 +612,15 @@ function buildConfigObject(name, ecosystems, bridges, envFiles) {
 		workspace: name,
 		ecosystems
 	};
-	if (bridges.length > 0) config["bridges"] = bridges.map((b) => ({
-		source: b.source,
-		target: b.target,
-		artifact: b.artifact
-	}));
+	if (bridges.length > 0) config["bridges"] = bridges.map((b) => {
+		const entry = {
+			source: b.source,
+			target: b.target,
+			artifact: b.artifact
+		};
+		if (b.watch?.length) entry["watch"] = b.watch;
+		return entry;
+	});
 	if (envFiles.length >= 2) config["env"] = {
 		shared: [],
 		files: envFiles.map((e) => e.path)
@@ -705,4 +748,4 @@ async function cleanupReplacedTooling(root) {
 //#endregion
 export { runInit };
 
-//# sourceMappingURL=init-CUBYRIhg.js.map
+//# sourceMappingURL=init-Bj_4_bZU.js.map

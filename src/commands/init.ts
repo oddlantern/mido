@@ -33,6 +33,13 @@ interface EcosystemGroup {
   readonly packages: string[];
 }
 
+interface BridgeWithWatch {
+  readonly source: string;
+  readonly target: string;
+  readonly artifact: string;
+  readonly watch: readonly string[] | undefined;
+}
+
 function handleCancel(): never {
   cancel('Aborted.');
   process.exit(0);
@@ -123,16 +130,23 @@ async function runFirstTime(root: string, configPath: string, parsers: ParserReg
   const finalEcosystems = groupByEcosystem(finalSupported);
 
   // Detect bridges
-  const bridges: BridgeCandidate[] = [...(await detectBridges(root, finalSupported))];
+  const detectedBridges: BridgeCandidate[] = [...(await detectBridges(root, finalSupported))];
 
-  if (bridges.length > 0) {
-    const bridgeLines = bridges.map((b) => `  ${b.source} \u2192 ${b.target} via ${b.artifact}`).join('\n');
-    log.info(`Detected ${bridges.length} bridge(s):\n${bridgeLines}`);
+  if (detectedBridges.length > 0) {
+    const bridgeLines = detectedBridges.map((b) => `  ${b.source} \u2192 ${b.target} via ${b.artifact}`).join('\n');
+    log.info(`Detected ${detectedBridges.length} bridge(s):\n${bridgeLines}`);
   }
 
-  // Prompt for additional bridges
+  // Prompt for watch paths on detected bridges
+  const bridgesWithWatch: BridgeWithWatch[] = [];
+  for (const b of detectedBridges) {
+    const watch = await promptWatchPaths(b.source);
+    bridgesWithWatch.push({ source: b.source, target: b.target, artifact: b.artifact, watch });
+  }
+
+  // Prompt for additional bridges (includes watch prompt)
   const manualBridges = await promptAdditionalBridges(root, finalSupported.map((p) => p.path));
-  bridges.push(...manualBridges);
+  bridgesWithWatch.push(...manualBridges);
 
   // Detect env files
   const envFiles = detectEnvFiles(root, finalSupported);
@@ -154,7 +168,7 @@ async function runFirstTime(root: string, configPath: string, parsers: ParserReg
   const name = nameResult || dirName;
 
   // Build and write config
-  const config = buildConfigObject(name, finalEcosystems, bridges, envFiles);
+  const config = buildConfigObject(name, finalEcosystems, bridgesWithWatch, envFiles);
   const yaml = renderYaml(config);
   await writeFile(configPath, yaml, 'utf-8');
   log.success(`${CONFIG_FILENAME} written`);
@@ -292,7 +306,7 @@ async function runReconciliation(root: string, configPath: string, parsers: Pars
     target: string;
     artifact: string;
     run?: string | undefined;
-    watch?: string[] | undefined;
+    watch?: readonly string[] | undefined;
   }> = [];
 
   for (const bridge of existingBridges) {
@@ -309,7 +323,29 @@ async function runReconciliation(root: string, configPath: string, parsers: Pars
     }
 
     if (action === 'keep') {
-      updatedBridges.push(bridge);
+      // If bridge has no watch paths, offer to add them
+      if (!bridge.watch?.length) {
+        const addWatch = await confirm({
+          message: `Add watch paths for this bridge?`,
+          initialValue: false,
+        });
+        if (isCancel(addWatch)) {
+          handleCancel();
+        }
+        if (addWatch) {
+          const watch = await promptWatchPaths(bridge.source);
+          if (watch) {
+            updatedBridges.push({ ...bridge, watch: [...watch] });
+            configChanged = true;
+          } else {
+            updatedBridges.push(bridge);
+          }
+        } else {
+          updatedBridges.push(bridge);
+        }
+      } else {
+        updatedBridges.push(bridge);
+      }
     } else if (action === 'modify') {
       const modified = await promptModifyBridge(root, existing, bridge);
       if (modified) {
@@ -329,7 +365,12 @@ async function runReconciliation(root: string, configPath: string, parsers: Pars
   if (manualBridges.length > 0) {
     configChanged = true;
     for (const b of manualBridges) {
-      updatedBridges.push({ source: b.source, target: b.target, artifact: b.artifact });
+      updatedBridges.push({
+        source: b.source,
+        target: b.target,
+        artifact: b.artifact,
+        watch: b.watch?.length ? [...b.watch] : undefined,
+      });
     }
   }
 
@@ -396,11 +437,38 @@ async function runPostInitCheck(parsers: ParserRegistry): Promise<void> {
 
 // ─── Bridge prompts ─────────────────────────────────────────────────────────
 
+async function promptWatchPaths(source: string): Promise<readonly string[] | undefined> {
+  const defaultWatch = `${source}/**`;
+  const watchResult = await text({
+    message: `What files trigger regeneration?`,
+    placeholder: defaultWatch,
+    defaultValue: '',
+  });
+  if (isCancel(watchResult)) {
+    handleCancel();
+  }
+
+  if (!watchResult) {
+    return undefined;
+  }
+
+  // Split on commas or spaces to allow multiple paths
+  return watchResult
+    .split(/[,\s]+/)
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0);
+}
+
 async function promptModifyBridge(
   root: string,
   config: MidoConfig,
-  current: { readonly source: string; readonly target: string; readonly artifact: string },
-): Promise<{ source: string; target: string; artifact: string } | null> {
+  current: {
+    readonly source: string;
+    readonly target: string;
+    readonly artifact: string;
+    readonly watch?: readonly string[] | undefined;
+  },
+): Promise<BridgeWithWatch | null> {
   const allPaths = getAllPackagePaths(config);
 
   const source = await select({
@@ -434,14 +502,16 @@ async function promptModifyBridge(
   // Make artifact relative to root
   const relArtifact = relative(root, join(root, artifact));
 
-  return { source, target, artifact: relArtifact };
+  const watch = await promptWatchPaths(source);
+
+  return { source, target, artifact: relArtifact, watch };
 }
 
 async function promptAdditionalBridges(
   root: string,
   packagePaths: readonly string[],
-): Promise<BridgeCandidate[]> {
-  const result: BridgeCandidate[] = [];
+): Promise<BridgeWithWatch[]> {
+  const result: BridgeWithWatch[] = [];
 
   const addMore = await confirm({ message: 'Any additional bridges?', initialValue: false });
   if (isCancel(addMore)) {
@@ -514,7 +584,8 @@ async function promptAdditionalBridges(
       }
     }
 
-    result.push({ source, target, artifact: relArtifact, reason: 'manual' });
+    const watch = await promptWatchPaths(source);
+    result.push({ source, target, artifact: relArtifact, watch });
     log.step(`Bridge: ${source} \u2192 ${target} via ${relArtifact}`);
 
     const another = await confirm({ message: 'Add another bridge?', initialValue: false });
@@ -588,7 +659,7 @@ function configToObject(config: MidoConfig): Record<string, unknown> {
 function buildConfigObject(
   name: string,
   ecosystems: Record<string, EcosystemGroup>,
-  bridges: readonly BridgeCandidate[],
+  bridges: readonly BridgeWithWatch[],
   envFiles: readonly { readonly path: string }[],
 ): Record<string, unknown> {
   const config: Record<string, unknown> = {
@@ -597,11 +668,17 @@ function buildConfigObject(
   };
 
   if (bridges.length > 0) {
-    config['bridges'] = bridges.map((b) => ({
-      source: b.source,
-      target: b.target,
-      artifact: b.artifact,
-    }));
+    config['bridges'] = bridges.map((b) => {
+      const entry: Record<string, unknown> = {
+        source: b.source,
+        target: b.target,
+        artifact: b.artifact,
+      };
+      if (b.watch?.length) {
+        entry['watch'] = b.watch;
+      }
+      return entry;
+    });
   }
 
   if (envFiles.length >= 2) {
