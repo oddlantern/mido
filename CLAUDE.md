@@ -22,7 +22,7 @@ src/
     package-json.ts      # npm/yarn/pnpm/bun manifest parser
     pubspec.ts           # Dart/Flutter manifest parser
   plugins/
-    types.ts             # Plugin interfaces, pipeline types, execution context
+    types.ts             # Plugin interfaces, pipeline types, execution context, STANDARD_ACTIONS
     registry.ts          # Plugin registry, context factory, watch path suggestions
     loader.ts            # Load builtin (and future external) plugins
     builtin/
@@ -39,8 +39,8 @@ src/
           fastify.ts     # Fastify adapter (spec at /documentation/json)
           koa.ts         # Koa adapter (spec at /swagger.json)
           nestjs.ts      # NestJS adapter (spec at /api-docs-json)
-      typescript.ts      # Ecosystem plugin: TS actions, openapi-typescript direct invocation
-      dart.ts            # Ecosystem plugin: Dart actions, swagger_parser + build_runner
+      typescript.ts      # Ecosystem plugin: TS lint/fmt/build/typecheck + openapi-typescript
+      dart.ts            # Ecosystem plugin: Dart lint/fmt/build + swagger_parser + build_runner
   checks/
     types.ts             # CheckResult, CheckIssue, Severity
     versions.ts          # Cross-package version consistency
@@ -48,6 +48,10 @@ src/
     env.ts               # Shared env key parity
   commands/
     check.ts             # Orchestrates all checks, --fix flow, --quiet mode
+    lint.ts              # Run linters across all packages per ecosystem
+    fmt.ts               # Run formatters across all packages per ecosystem
+    build.ts             # Run build actions across all packages per ecosystem
+    pre-commit.ts        # Full pre-commit suite: fmt --check → lint → check --quiet
     init.ts              # Scan repo, generate mido.yml interactively (with plugin watch suggestions)
     install.ts           # Write git hooks to .git/hooks/
     commit-msg.ts        # Validate commit message against conventional commit rules
@@ -78,6 +82,10 @@ src/
 - **Ecosystem plugins invoke tools directly.** The TypeScript plugin parses existing `generate` scripts to extract `openapi-typescript` invocation parameters (input/output paths) and runs the tool directly instead of delegating to a shell script.
 - **Framework adapters for zero-config export.** The openapi plugin detects server frameworks (Elysia, Hono, Express, Fastify, Koa, NestJS) and their OpenAPI plugins from dependencies. The exporter boots the server on a random free port, fetches the spec from the framework's known endpoint, writes it to disk, and kills the server. No export script needed. The `openapi:export` script is a fallback for unsupported frameworks.
 - **Bridge-level overrides for edge cases.** Bridges support optional `entryFile` (server entry point) and `specPath` (custom spec endpoint) for when auto-detection fails.
+- **Standard actions across ecosystems.** `STANDARD_ACTIONS` in `src/plugins/types.ts` defines lint, lint:fix, format, format:check, build, typecheck, codegen. Ecosystem plugins implement whichever actions apply. The `lint`, `fmt`, `build` commands dispatch these actions per-package.
+- **Tool resolution for lint/format.** mido does not install linters or formatters — it finds them. TS plugin checks `node_modules/.bin/oxlint` then `eslint`; `oxfmt` then `prettier`. Dart plugin uses `dart analyze`/`dart format` from PATH. Missing tools produce a warning, not an error.
+- **Pre-commit is a single command.** `mido pre-commit` runs format check → lint → workspace check in sequence, stopping on first failure. The pre-commit hook installed by `mido install` is just `mido pre-commit`.
+- **Parallel execution within ecosystems.** Lint and format run packages within the same ecosystem in parallel via `Promise.all`. Build runs sequentially (build order may matter).
 
 ## Bridge Fields
 
@@ -167,5 +175,5 @@ Build output is `dist/bin.js` (ESM, Node 20 target, sourcemaps). The `bin` field
 - Do not add runtime dependencies without discussion. The dep count should stay minimal.
 - Do not use `process.exit()` anywhere except `src/bin.ts`. Commands return exit codes, the entry point exits.
 - Do not write Bun-specific code in `src/`. The published binary runs on Node.js.
-- Do not auto-format on commit hooks. The pre-commit hook runs `mido check --quiet`, not a formatter.
+- Do not auto-format on commit hooks. The pre-commit hook runs `mido pre-commit` (format check + lint + workspace check). It checks formatting but does not auto-fix.
 - Do not add CLI framework deps (commander, yargs, etc). The command router is ~30 lines and that's intentional.
