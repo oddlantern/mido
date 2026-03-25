@@ -429,7 +429,7 @@ async function runReconciliation(root, configPath, parsers) {
 			}
 		} else updatedBridges.push(bridge);
 		else if (action === "modify") {
-			const modified = await promptModifyBridge(root, existing, bridge);
+			const modified = await promptModifyBridge(root, existing, bridge, pluginRegistry, reconPackageMap);
 			if (modified) {
 				updatedBridges.push(modified);
 				configChanged = true;
@@ -551,7 +551,7 @@ async function promptNextSteps(parsers, summary) {
 			return 0;
 	}
 }
-async function promptWatchPaths(root, source, suggestion) {
+async function promptWatchPaths(root, source, suggestion, currentWatch) {
 	const defaultWatch = `${source}/**`;
 	const options = [];
 	if (suggestion) {
@@ -562,6 +562,7 @@ async function promptWatchPaths(root, source, suggestion) {
 			hint: `detected: ${suggestion.reason}`
 		});
 	}
+	const skipHint = currentWatch?.length ? `keep: ${currentWatch.join(", ")}` : `default: ${defaultWatch}`;
 	options.push({
 		value: "browse",
 		label: "Browse for a different path"
@@ -571,7 +572,7 @@ async function promptWatchPaths(root, source, suggestion) {
 	}, {
 		value: "skip",
 		label: "Skip",
-		hint: `default: ${defaultWatch}`
+		hint: skipHint
 	});
 	const choice = await select({
 		message: "Watch paths for this bridge:",
@@ -599,10 +600,10 @@ async function promptWatchPaths(root, source, suggestion) {
 			if (!entered) return;
 			return entered.split(/[,\s]+/).map((p) => p.trim()).filter((p) => p.length > 0);
 		}
-		default: return;
+		default: return currentWatch?.length ? currentWatch : void 0;
 	}
 }
-async function promptModifyBridge(root, config, current) {
+async function promptModifyBridge(root, config, current, pluginRegistry, packageMap) {
 	const allPaths = getAllPackagePaths(config);
 	const source = await select({
 		message: `Source (currently: ${current.source}):`,
@@ -629,11 +630,17 @@ async function promptModifyBridge(root, config, current) {
 		initialValue: current.artifact
 	});
 	if (isCancel(artifact)) handleCancel();
+	const relArtifact = relative(root, join(root, artifact));
+	let modifySuggestion = null;
+	if (pluginRegistry && packageMap) {
+		const sourcePkg = packageMap.get(source);
+		if (sourcePkg) modifySuggestion = await pluginRegistry.suggestWatchPaths(sourcePkg, relArtifact, packageMap, root);
+	}
 	return {
 		source,
 		target,
-		artifact: relative(root, join(root, artifact)),
-		watch: await promptWatchPaths(root, source)
+		artifact: relArtifact,
+		watch: await promptWatchPaths(root, source, modifySuggestion, current.watch)
 	};
 }
 async function promptAdditionalBridges(root, packagePaths) {
@@ -913,4 +920,4 @@ async function cleanupReplacedTooling(root) {
 //#endregion
 export { runInit };
 
-//# sourceMappingURL=init-Dci3nstu.js.map
+//# sourceMappingURL=init-DvgfXW_u.js.map
