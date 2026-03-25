@@ -597,19 +597,20 @@ async function promptWatchPaths(
     options.push({
       value: 'suggestion',
       label: suggestedLabel,
-      hint: `suggested by ${suggestion.reason}`,
+      hint: `detected: ${suggestion.reason}`,
     });
   }
 
   options.push(
-    { value: 'browse', label: 'Browse for a path', hint: 'file browser' },
+    { value: 'browse', label: 'Browse for a different path' },
     { value: 'manual', label: 'Enter manually' },
-    { value: 'skip', label: 'Skip', hint: `use default: ${defaultWatch}` },
+    { value: 'skip', label: 'Skip', hint: `default: ${defaultWatch}` },
   );
 
   const choice = await select({
     message: 'Watch paths for this bridge:',
     options,
+    initialValue: suggestion ? ('suggestion' as WatchChoice) : ('browse' as WatchChoice),
   });
   if (isCancel(choice)) {
     handleCancel();
@@ -624,7 +625,6 @@ async function promptWatchPaths(
         message: 'Select directory to watch:',
         root,
         directory: true,
-        initialValue: source,
       });
       if (isCancel(browsed)) {
         handleCancel();

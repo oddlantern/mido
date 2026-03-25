@@ -542,24 +542,24 @@ async function promptWatchPaths(root, source, suggestion) {
 		options.push({
 			value: "suggestion",
 			label: suggestedLabel,
-			hint: `suggested by ${suggestion.reason}`
+			hint: `detected: ${suggestion.reason}`
 		});
 	}
 	options.push({
 		value: "browse",
-		label: "Browse for a path",
-		hint: "file browser"
+		label: "Browse for a different path"
 	}, {
 		value: "manual",
 		label: "Enter manually"
 	}, {
 		value: "skip",
 		label: "Skip",
-		hint: `use default: ${defaultWatch}`
+		hint: `default: ${defaultWatch}`
 	});
 	const choice = await select({
 		message: "Watch paths for this bridge:",
-		options
+		options,
+		initialValue: suggestion ? "suggestion" : "browse"
 	});
 	if (isCancel(choice)) handleCancel();
 	switch (choice) {
@@ -568,8 +568,7 @@ async function promptWatchPaths(root, source, suggestion) {
 			const browsed = await path({
 				message: "Select directory to watch:",
 				root,
-				directory: true,
-				initialValue: source
+				directory: true
 			});
 			if (isCancel(browsed)) handleCancel();
 			return [`${relative(root, join(root, browsed))}/**`];
@@ -897,4 +896,4 @@ async function cleanupReplacedTooling(root) {
 //#endregion
 export { runInit };
 
-//# sourceMappingURL=init-4m3RL-BV.js.map
+//# sourceMappingURL=init-l5WC-Q8b.js.map
