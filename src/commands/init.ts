@@ -424,7 +424,13 @@ async function runReconciliation(
         updatedBridges.push(bridge);
       }
     } else if (action === 'modify') {
-      const modified = await promptModifyBridge(root, existing, bridge);
+      const modified = await promptModifyBridge(
+        root,
+        existing,
+        bridge,
+        pluginRegistry,
+        reconPackageMap,
+      );
       if (modified) {
         updatedBridges.push(modified);
         configChanged = true;
@@ -613,6 +619,7 @@ async function promptWatchPaths(
   root: string,
   source: string,
   suggestion?: WatchPathSuggestion | null,
+  currentWatch?: readonly string[] | null,
 ): Promise<readonly string[] | undefined> {
   const defaultWatch = `${source}/**`;
 
@@ -629,10 +636,15 @@ async function promptWatchPaths(
     });
   }
 
+  // "Skip" shows current watch paths if they exist, otherwise the default
+  const skipHint = currentWatch?.length
+    ? `keep: ${currentWatch.join(', ')}`
+    : `default: ${defaultWatch}`;
+
   options.push(
     { value: 'browse', label: 'Browse for a different path' },
     { value: 'manual', label: 'Enter manually' },
-    { value: 'skip', label: 'Skip', hint: `default: ${defaultWatch}` },
+    { value: 'skip', label: 'Skip', hint: skipHint },
   );
 
   const choice = await select({
@@ -678,7 +690,8 @@ async function promptWatchPaths(
     }
     case 'skip':
     default: {
-      return undefined;
+      // Preserve existing watch paths if available
+      return currentWatch?.length ? currentWatch : undefined;
     }
   }
 }
@@ -692,6 +705,8 @@ async function promptModifyBridge(
     readonly artifact: string;
     readonly watch?: readonly string[] | undefined;
   },
+  pluginRegistry?: PluginRegistry,
+  packageMap?: ReadonlyMap<string, import('../graph/types.js').WorkspacePackage>,
 ): Promise<BridgeWithWatch | null> {
   const allPaths = getAllPackagePaths(config);
 
@@ -726,7 +741,21 @@ async function promptModifyBridge(
   // Make artifact relative to root
   const relArtifact = relative(root, join(root, artifact));
 
-  const watch = await promptWatchPaths(root, source);
+  // Get plugin suggestion for the (possibly changed) source
+  let modifySuggestion: WatchPathSuggestion | null = null;
+  if (pluginRegistry && packageMap) {
+    const sourcePkg = packageMap.get(source);
+    if (sourcePkg) {
+      modifySuggestion = await pluginRegistry.suggestWatchPaths(
+        sourcePkg,
+        relArtifact,
+        packageMap,
+        root,
+      );
+    }
+  }
+
+  const watch = await promptWatchPaths(root, source, modifySuggestion, current.watch);
 
   return { source, target, artifact: relArtifact, watch };
 }
