@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
 import type { WorkspacePackage } from '../../graph/types.js';
+import { MIDO_ROOT } from '../../version.js';
 import type {
   DomainCapability,
   EcosystemPlugin,
@@ -72,15 +73,24 @@ function detectOutputFromScripts(scripts: Record<string, string>): string | null
 }
 
 /**
- * Resolve a binary from node_modules/.bin/ or fall back to PATH.
- * Returns the bin name if found, null if not available.
+ * Resolve a binary for a TS tool (linter, formatter).
+ *
+ * Resolution order:
+ *  1. Workspace root node_modules — user override takes precedence
+ *  2. Mido's own node_modules   — bundled oxlint / oxfmt
+ *  3. Fall through (null)        — caller can try bare name on PATH
  */
-function resolveBin(name: string, root: string): string | null {
-  const localBin = join(root, 'node_modules', '.bin', name);
-  if (existsSync(localBin)) {
-    return localBin;
+export function resolveBin(name: string, workspaceRoot: string): string | null {
+  const workspaceBin = join(workspaceRoot, 'node_modules', '.bin', name);
+  if (existsSync(workspaceBin)) {
+    return workspaceBin;
   }
-  // Fall through — caller can try the bare name (relies on PATH)
+
+  const bundledBin = join(MIDO_ROOT, 'node_modules', '.bin', name);
+  if (existsSync(bundledBin)) {
+    return bundledBin;
+  }
+
   return null;
 }
 
