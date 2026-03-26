@@ -43,8 +43,16 @@ src/
           fastify.ts     # Fastify adapter (spec at /documentation/json)
           koa.ts         # Koa adapter (spec at /swagger.json)
           nestjs.ts      # NestJS adapter (spec at /api-docs-json)
-      typescript.ts      # Ecosystem plugin: TS lint/fmt/build/typecheck + openapi-typescript
-      dart.ts            # Ecosystem plugin: Dart lint/fmt/build + swagger_parser + build_runner
+      design/
+        plugin.ts        # Domain plugin: design token validation + downstream delegation
+        token-schema.ts  # Zod schema for tokens.json + validation
+        types.ts         # ValidatedTokens, ResolvedExtension, type detection
+      dart/
+        token-codegen.ts # Flutter code generators (ColorScheme, extensions, constants, theme)
+      typescript/
+        token-codegen.ts # CSS custom properties + TS constants generators
+      typescript.ts      # Ecosystem plugin: TS lint/fmt/build/typecheck + openapi-typescript + design-tokens
+      dart.ts            # Ecosystem plugin: Dart lint/fmt/build + swagger_parser + build_runner + design-tokens
   checks/
     types.ts             # CheckResult, CheckIssue, Severity
     versions.ts          # Cross-package version consistency
@@ -96,6 +104,12 @@ src/
 - **Commits is a top-level config section.** Not nested under lint. `mido init` auto-populates `commits.scopes` from detected package names.
 - **Pre-commit is a single command.** `mido pre-commit` runs format check → lint → workspace check in sequence, stopping on first failure. The pre-commit hook installed by `mido install` is just `mido pre-commit`.
 - **Parallel execution within ecosystems.** Lint and format run packages within the same ecosystem in parallel via `Promise.all`. Build runs sequentially (build order may matter).
+- **mido-design is a domain plugin.** Same tier as mido-openapi. Owns the `tokens.json` schema (Zod), validates tokens, then delegates code generation to ecosystem plugins. mido-dart generates Flutter themes (ColorScheme, ThemeExtensions, constants, ThemeData). mido-typescript generates CSS custom properties and TS constants. One `tokens.json`, all ecosystems served.
+- **Token schema is tool-agnostic.** Names like `color`, `spacing`, `radius`, `elevation`, `typography`, `extensions` are semantic — no Flutter, CSS, or framework terms. Each ecosystem plugin adapts naming to its framework idioms (e.g., `spacing.xs` → Dart: `DSSpacing.xs`, CSS: `--spacing-xs`).
+- **Extensions support typed fields.** Extension values are detected by shape: `{ light, dark }` hex → themed color, `#hex` → static color, `number` → number, `{ light, dark }` numbers → themed number, `string` → string. Each ecosystem maps these to native types with proper lerp/interpolation.
+- **Font provider controls typography output.** `typography.provider` is `"asset"` (default), `"google_fonts"`, or `"none"`. Dart codegen adapts: asset → `TextStyle(fontFamily: ...)`, google_fonts → `GoogleFonts.method(...)`, none → no font family.
+- **Shared-artifact optimization in watcher.** When multiple bridges share the same artifact (e.g., dart and typescript bridges both pointing to `tokens.json`), the watcher groups them: single domain plugin validation, then parallel ecosystem generation in one pipeline run. Without this, editing `tokens.json` would trigger redundant validations.
+- **First-run package scaffolding.** When a design-tokens bridge target directory doesn't exist, the ecosystem plugin creates it with a minimal manifest (`pubspec.yaml` for Dart, `package.json` for TS) and the generated output structure.
 
 ## Bridge Fields
 
@@ -165,6 +179,9 @@ Build output is `dist/bin.js` (ESM, Node 20 target, sourcemaps). The `bin` field
 - Test fixtures in `test/fixture/` (has intentional errors) and `test/fixture-clean/` (passes all checks)
 - Run from fixture dirs: `cd test/fixture && node ../../dist/bin.js check`
 - After any change, verify both fixtures produce expected results
+- Design token tests in `test/tokens/` — schema validation, Dart codegen, CSS/TS codegen, shared-artifact grouping
+- Token test fixture in `test/fixture-tokens/tokens.json` — minimal valid token set
+- Run token tests: `bun test test/tokens/`
 
 ## Adding a New Ecosystem Parser
 
