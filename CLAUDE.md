@@ -6,16 +6,22 @@ Cross-ecosystem monorepo workspace tool. Package: `@oddlantern/mido`. Binary: `m
 
 ```
 scripts/
-  generate-schema.ts     # JSON schema generator → schema.json (build-time)
+  generate-schema.ts     # JSON schema generator → schema.json (derived from Zod, build-time)
 src/
   bin.ts                 # CLI entry point, command router
-  output.ts              # ANSI terminal formatting
+  banner.ts              # ASCII banner renderer
+  guards.ts              # isRecord type guard for safe narrowing
+  hooks.ts               # Git hook resolution, conflict detection, file writing
   lock.ts                # mido.lock read/write/merge
-  prompt.ts              # Interactive prompts (@clack/prompts wrappers)
   manifest-writer.ts     # Write version ranges back to manifests
+  output.ts              # ANSI terminal formatting constants
+  pm-detect.ts           # Package manager detection from lockfiles
+  prompt.ts              # Interactive prompts (@clack/prompts wrappers)
+  version.ts             # Package version + MIDO_ROOT path resolution
   config/
+    defaults.ts          # Default config values (lint categories, format options, ignore patterns)
     schema.ts            # Zod schema for mido.yml (ecosystem-centric format/lint/commits)
-    loader.ts            # Walk-up config finder + validator + auto-migration
+    loader.ts            # Walk-up config finder + validator + auto-migration pipeline
   files/
     resolver.ts          # Central file resolution with ignore pattern support
   graph/
@@ -26,14 +32,25 @@ src/
     package-json.ts      # npm/yarn/pnpm/bun manifest parser
     pubspec.ts           # Dart/Flutter manifest parser
   plugins/
-    types.ts             # Plugin interfaces, pipeline types, execution context, STANDARD_ACTIONS
+    types.ts             # Plugin interfaces, pipeline types, ExecutionContext, STANDARD_ACTIONS
     registry.ts          # Plugin registry, context factory, watch path suggestions
     loader.ts            # Load builtin (and future external) plugins
     builtin/
-      exec.ts            # Shared runCommand helper + isRecord guard
+      exec.ts            # Shared runCommand helper
+      typescript.ts      # Ecosystem plugin: TS lint/fmt/build/test/typecheck
+      typescript-codegen.ts  # OpenAPI TS + design token CSS/TS code generators
+      typescript/
+        token-codegen.ts # CSS custom properties + TS constants generators
+        lint-config.ts   # Oxlint plugin detection + oxlintrc/oxfmtrc generation
+      dart.ts            # Ecosystem plugin: Dart lint/fmt/build/test + design-tokens
+      dart/
+        token-codegen.ts # Flutter code generators (ColorScheme, extensions, constants)
+        token-theme.ts   # Flutter ThemeData + theme extensions generation
+        openapi-codegen.ts # Dart OpenAPI client generation (swagger_parser scaffold)
       openapi/
         plugin.ts        # Domain plugin: OpenAPI spec export, prepare, downstream delegation
         exporter.ts      # Export engine: boot server, fetch spec, write to disk
+        server-boot.ts   # Server spawning, port detection, readiness polling, graceful shutdown
         adapters/
           types.ts       # FrameworkAdapter interface
           index.ts       # Adapter registry + detectAdapter()
@@ -47,41 +64,48 @@ src/
         plugin.ts        # Domain plugin: design token validation + downstream delegation
         token-schema.ts  # Zod schema for tokens.json + validation
         types.ts         # ValidatedTokens, ResolvedExtension, type detection
-      dart/
-        token-codegen.ts # Flutter code generators (ColorScheme, extensions, constants, theme)
-      typescript/
-        token-codegen.ts # CSS custom properties + TS constants generators
-      typescript.ts      # Ecosystem plugin: TS lint/fmt/build/typecheck + openapi-typescript + design-tokens
-      dart.ts            # Ecosystem plugin: Dart lint/fmt/build + swagger_parser + build_runner + design-tokens
   checks/
     types.ts             # CheckResult, CheckIssue, Severity
     versions.ts          # Cross-package version consistency
     bridges.ts           # Cross-ecosystem edge validation
     env.ts               # Shared env key parity
+    staleness.ts         # Generated output presence check
   commands/
+    add.ts               # Scaffold new package + update mido.yml
+    affected.ts          # Git diff → package graph walk → affected set
+    build.ts             # Build library packages (skips apps unless --all)
     check.ts             # Orchestrates all checks, --fix flow, --quiet mode
-    generate.ts          # Run all bridge pipelines (fresh clone / CI)
-    lint.ts              # Run linters across all packages per ecosystem
-    fmt.ts               # Run formatters across all packages per ecosystem
-    build.ts             # Run build actions across all packages per ecosystem
-    pre-commit.ts        # Full pre-commit suite: fmt --check → lint → check --quiet
-    init.ts              # Scan repo, generate mido.yml interactively (with plugin watch suggestions)
-    reconcile.ts         # Reconciliation mode when mido.yml already exists
-    install.ts           # Write git hooks to .git/hooks/
+    ci.ts                # Full CI pipeline: generate → build → lint → test → check
     commit-msg.ts        # Validate commit message against conventional commit rules
+    doctor.ts            # Workspace diagnostics (config, hooks, tools, generated output)
+    ecosystem-runner.ts  # Shared runner for lint/fmt/build/test commands
+    fmt.ts               # Run formatters across all packages per ecosystem
+    generate.ts          # Run all bridge pipelines with caching (fresh clone / CI)
+    graph.ts             # D3.js interactive dependency graph (HTML/DOT/ASCII)
+    group.ts             # Package grouping by ecosystem with filtering
+    init.ts              # Scan repo, generate mido.yml interactively
+    install.ts           # Write git hooks to .git/hooks/
+    lint.ts              # Run linters across all packages per ecosystem
+    migrate.ts           # Migrate external tool configs into mido.yml
+    outdated.ts          # Cross-ecosystem dependency freshness (npm + pub.dev)
+    pre-commit.ts        # Full pre-commit suite: fmt --check → lint → check --quiet
+    reconcile.ts         # Reconciliation mode when mido.yml already exists
+    test.ts              # Run tests across all packages per ecosystem
+    why.ts               # Show which packages use a dependency
     utils/
-      shared.ts          # Init types, constants, config helpers
+      shared.ts          # Init types, constants, config helpers, re-exports
       prompts.ts         # Bridge prompt flows (watch, modify, additional)
-      cleanup.ts         # Post-init cleanup, health check, next steps
+      cleanup.ts         # Tool detection, migration table, dependency removal
       config-render.ts   # YAML rendering + default config builder
   discovery/
     scanner.ts           # Filesystem scanning for ecosystem markers
     heuristics.ts        # Bridge and ecosystem detection heuristics
   watcher/
     dev.ts               # File watcher daemon, bridge execution with pipeline support
+    bridge-runner.ts     # Bridge resolution, grouping, pipeline execution
     pipeline.ts          # Pipeline runner: step sequences, output hashing, change detection
+    pipeline-cache.ts    # Input hashing + cache hit/miss for generate command
     debouncer.ts         # Debounce file events before triggering bridges
-    pm-detect.ts         # Package manager detection from lockfiles
   commit/
     validator.ts         # Conventional commit parsing and validation
 ```
