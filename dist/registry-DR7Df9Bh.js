@@ -751,6 +751,17 @@ function generateThemeExtensions(tokens) {
 		for (const name of fieldNames) lines.push(`      ${name}: Color.lerp(${name}, other.${name}, t)!,`);
 		lines.push("    );");
 		lines.push("  }");
+		lines.push("");
+		const firstField = fieldNames[0] ?? "brand";
+		lines.push("  /// Look up a color by its key name. Returns first color for unknown keys.");
+		lines.push("  Color byKey(String key) => switch (key) {");
+		for (const name of fieldNames) {
+			const kebab = name.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
+			if (kebab !== name) lines.push(`    '${kebab}' || '${name}' => ${name},`);
+			else lines.push(`    '${name}' => ${name},`);
+		}
+		lines.push(`    _ => ${firstField},`);
+		lines.push("  };");
 		lines.push("}");
 		index++;
 		if (index < extEntries.length) lines.push("");
@@ -2528,4 +2539,4 @@ var PluginRegistry = class {
 //#endregion
 export { loadPlugins as n, STANDARD_ACTIONS as r, PluginRegistry as t };
 
-//# sourceMappingURL=registry-C8GTLy-v.js.map
+//# sourceMappingURL=registry-DR7Df9Bh.js.map
