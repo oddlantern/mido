@@ -152,6 +152,23 @@ export function generateThemeExtensions(tokens: ValidatedTokens): string {
     }
     lines.push("    );");
     lines.push("  }");
+    lines.push("");
+
+    // byKey — lookup by string key (useful for API-driven values like genre keys)
+    const firstField = fieldNames[0] ?? "brand";
+    lines.push("  /// Look up a color by its key name. Returns first color for unknown keys.");
+    lines.push("  Color byKey(String key) => switch (key) {");
+    for (const name of fieldNames) {
+      // Convert camelCase to kebab-case for matching (e.g., sciFi → sci-fi)
+      const kebab = name.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
+      if (kebab !== name) {
+        lines.push(`    '${kebab}' || '${name}' => ${name},`);
+      } else {
+        lines.push(`    '${name}' => ${name},`);
+      }
+    }
+    lines.push(`    _ => ${firstField},`);
+    lines.push("  };");
     lines.push("}");
 
     index++;
