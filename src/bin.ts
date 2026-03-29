@@ -56,6 +56,7 @@ CI / automation:
 
 Common flags:
   --quiet              Only show failures
+  --dry-run            Preview changes without writing to disk
   --package <path>     Target a specific package
   --ecosystem <name>   Target a specific ecosystem (lint, fmt, test)
   --json               Machine-readable output (affected, outdated, why)
@@ -134,8 +135,9 @@ async function main(): Promise<void> {
   }
 
   if (command === "install") {
+    const dryRun = args.includes("--dry-run");
     const { runInstall } = await import("@/commands/install");
-    const exitCode = await runInstall(process.cwd());
+    const exitCode = await runInstall(process.cwd(), { dryRun }, undefined);
     process.exit(exitCode);
   }
 
@@ -163,8 +165,9 @@ async function main(): Promise<void> {
     const quiet = args.includes("--quiet");
     const verbose = args.includes("--verbose");
     const force = args.includes("--force");
+    const dryRun = args.includes("--dry-run");
     const { runGenerate } = await import("@/commands/generate");
-    const exitCode = await runGenerate(parsers, { quiet, verbose, force });
+    const exitCode = await runGenerate(parsers, { quiet, verbose, force, dryRun });
     process.exit(exitCode);
   }
 
@@ -181,8 +184,9 @@ async function main(): Promise<void> {
   if (command === "upgrade") {
     const all = args.includes("--all");
     const verify = args.includes("--verify");
+    const dryRun = args.includes("--dry-run");
     const { runUpgrade } = await import("@/commands/upgrade");
-    const exitCode = await runUpgrade(parsers, { all, verify });
+    const exitCode = await runUpgrade(parsers, { all, verify, dryRun });
     process.exit(exitCode);
   }
 
@@ -247,8 +251,9 @@ async function main(): Promise<void> {
       process.exit(1);
     }
     const includePlatformIds = args.includes("--include-platform-ids");
+    const dryRun = args.includes("--dry-run");
     const { runRename } = await import("@/commands/rename");
-    const exitCode = await runRename(parsers, newName, { includePlatformIds });
+    const exitCode = await runRename(parsers, newName, { includePlatformIds, dryRun });
     process.exit(exitCode);
   }
 

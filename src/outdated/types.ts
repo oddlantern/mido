@@ -84,4 +84,5 @@ export interface OutdatedOptions {
 export interface UpgradeOptions {
   readonly all?: boolean | undefined;
   readonly verify?: boolean | undefined;
+  readonly dryRun?: boolean | undefined;
 }

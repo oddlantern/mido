@@ -253,6 +253,12 @@ export interface ExecutionContext {
    * so ecosystem plugins write output next to the source, not into consumers.
    */
   readonly outputDir?: string | undefined;
+  /**
+   * Dry-run mode — log file operations instead of executing them.
+   * When true, commands and plugins should use the dryFs helpers
+   * instead of direct fs calls for any write/delete operations.
+   */
+  readonly dryRun?: boolean | undefined;
 }
 
 export interface EcosystemHandler {

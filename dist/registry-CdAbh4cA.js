@@ -3149,6 +3149,7 @@ var PluginRegistry = class {
 			root,
 			packageManager,
 			verbose: options?.verbose,
+			dryRun: options?.dryRun,
 			lintTypescript: options?.lintConfig?.typescript,
 			lintDart: options?.lintConfig?.dart,
 			formatTypescript: options?.formatConfig?.typescript,
@@ -3165,4 +3166,4 @@ var PluginRegistry = class {
 //#endregion
 export { loadPlugins as n, STANDARD_ACTIONS as r, PluginRegistry as t };
 
-//# sourceMappingURL=registry-YSQZfaPo.js.map
+//# sourceMappingURL=registry-CdAbh4cA.js.map

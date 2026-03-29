@@ -16,7 +16,11 @@ export { writeHooks } from "@/hooks";
  *
  * @returns exit code (0 = success, 1 = error)
  */
-export async function runInstall(root: string, config?: MidoConfig): Promise<number> {
+export async function runInstall(
+  root: string,
+  options?: { readonly dryRun?: boolean },
+  config?: MidoConfig,
+): Promise<number> {
   const gitDir = join(root, ".git");
   if (!existsSync(gitDir)) {
     console.error('Not a git repository. Run "git init" first.');
@@ -33,6 +37,11 @@ export async function runInstall(root: string, config?: MidoConfig): Promise<num
     } catch {
       // No mido.yml yet — install with defaults
     }
+  }
+
+  if (options?.dryRun) {
+    console.log("dry-run: would install git hooks to .git/hooks/");
+    return 0;
   }
 
   const { installed, disabled } = await writeHooks(root, resolvedConfig, true);
