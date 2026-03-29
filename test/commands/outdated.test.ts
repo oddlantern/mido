@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { stripRange, classifyUpdate } from "../../src/commands/outdated.js";
+import { stripRange, classifyUpdate } from "../../src/outdated/collect.js";
 
 describe("outdated — stripRange", () => {
   test("strips ^", () => expect(stripRange("^1.2.3")).toBe("1.2.3"));

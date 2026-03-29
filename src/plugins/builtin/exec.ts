@@ -1,19 +1,16 @@
-import { spawn } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { isRecord } from "../../guards.js";
-import type { ExecuteResult, ExecutionContext } from "../types.js";
+import { runCommand } from "../../process.js";
+import type { ExecutionContext } from "../types.js";
 
-export { isRecord };
+export { isRecord, runCommand };
 
 /** Check if the execution context has pre-resolved file paths */
 export function hasResolvedFiles(context: ExecutionContext): boolean {
   return !!context.resolvedFiles && context.resolvedFiles.length > 0;
 }
-
-/** Maximum bytes of stdout/stderr to accumulate per process */
-const MAX_OUTPUT_BYTES = 1024 * 1024;
 
 /**
  * Read and parse a package.json file from a package directory.
@@ -67,71 +64,4 @@ export function hasDep(
     }
   }
   return false;
-}
-
-/**
- * Spawn a command and collect its output.
- * Does NOT use shell: true — arguments are passed directly to the executable.
- */
-export function runCommand(
-  command: string,
-  args: readonly string[],
-  cwd: string,
-): Promise<ExecuteResult> {
-  const start = performance.now();
-
-  return new Promise((resolve) => {
-    const child = spawn(command, [...args], {
-      cwd,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-
-    const chunks: string[] = [];
-    let totalBytes = 0;
-
-    child.stdout.on("data", (data: Buffer) => {
-      if (totalBytes < MAX_OUTPUT_BYTES) {
-        chunks.push(data.toString());
-        totalBytes += data.length;
-      }
-    });
-
-    child.stderr.on("data", (data: Buffer) => {
-      if (totalBytes < MAX_OUTPUT_BYTES) {
-        chunks.push(data.toString());
-        totalBytes += data.length;
-      }
-    });
-
-    child.on("close", (code) => {
-      const duration = Math.round(performance.now() - start);
-      const output = chunks.join("");
-
-      if (code === 0) {
-        resolve({
-          success: true,
-          duration,
-          summary: `${command} ${args.join(" ")} completed`,
-          output,
-        });
-      } else {
-        resolve({
-          success: false,
-          duration,
-          summary: `${command} ${args.join(" ")} failed (exit ${String(code)})`,
-          output,
-        });
-      }
-    });
-
-    child.on("error", (err: Error) => {
-      const duration = Math.round(performance.now() - start);
-      resolve({
-        success: false,
-        duration,
-        summary: `Failed to spawn: ${err.message}`,
-        output: err.message,
-      });
-    });
-  });
 }
