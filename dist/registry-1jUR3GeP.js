@@ -2086,6 +2086,12 @@ const ASSET_EXTENSIONS = new Set([
 ]);
 /** Directory names that indicate theme variants */
 const THEME_VARIANT_DIRS = new Set(["light", "dark"]);
+/** Directories to skip when scanning (generated output, hidden dirs) */
+const IGNORED_DIRS = new Set([
+	"generated",
+	"node_modules",
+	".dart_tool"
+]);
 /**
 * Infer category and key from a filename.
 *
@@ -2120,6 +2126,7 @@ function scanDir(absDir, assetsRoot, parentDir) {
 		const stat = statSync(absPath, { throwIfNoEntry: false });
 		if (!stat) continue;
 		if (stat.isDirectory()) {
+			if (IGNORED_DIRS.has(entry) || entry.startsWith(".")) continue;
 			entries.push(...scanDir(absPath, assetsRoot, entry));
 			continue;
 		}
@@ -3724,4 +3731,4 @@ var PluginRegistry = class {
 //#endregion
 export { loadPlugins as n, STANDARD_ACTIONS as r, PluginRegistry as t };
 
-//# sourceMappingURL=registry-Br7pk9S7.js.map
+//# sourceMappingURL=registry-1jUR3GeP.js.map

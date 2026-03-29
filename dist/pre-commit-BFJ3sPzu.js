@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import { c as PASS, i as FAIL } from "./output-MbJ98jNX.js";
 import { n as runCheck } from "./check-BUBkRpbN.js";
-import { runFmt } from "./fmt-CiB2r-G7.js";
-import { runLint } from "./lint-Wz3ipRaa.js";
+import { runFmt } from "./fmt-CqX-rkaR.js";
+import { runLint } from "./lint-BWsrXs2i.js";
 //#region src/commands/pre-commit.ts
 /**
 * Run the full pre-commit validation suite.
@@ -42,4 +42,4 @@ async function runPreCommit(parsers) {
 //#endregion
 export { runPreCommit };
 
-//# sourceMappingURL=pre-commit-BOVBDNdc.js.map
+//# sourceMappingURL=pre-commit-BFJ3sPzu.js.map

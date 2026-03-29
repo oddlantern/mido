@@ -16,6 +16,9 @@ const ASSET_EXTENSIONS: ReadonlySet<string> = new Set([
 /** Directory names that indicate theme variants */
 const THEME_VARIANT_DIRS: ReadonlySet<string> = new Set(["light", "dark"]);
 
+/** Directories to skip when scanning (generated output, hidden dirs) */
+const IGNORED_DIRS: ReadonlySet<string> = new Set(["generated", "node_modules", ".dart_tool"]);
+
 /**
  * Infer category and key from a filename.
  *
@@ -59,6 +62,9 @@ function scanDir(absDir: string, assetsRoot: string, parentDir: string): AssetEn
     }
 
     if (stat.isDirectory()) {
+      if (IGNORED_DIRS.has(entry) || entry.startsWith(".")) {
+        continue;
+      }
       entries.push(...scanDir(absPath, assetsRoot, entry));
       continue;
     }
