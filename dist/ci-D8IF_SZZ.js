@@ -19,7 +19,7 @@ async function runCi(parsers, options = {}) {
 		{
 			name: "generate",
 			run: async () => {
-				const { runGenerate } = await import("./generate-BSpilDW8.js");
+				const { runGenerate } = await import("./generate-DKUgMT68.js");
 				return runGenerate(parsers, {
 					quiet: true,
 					verbose
@@ -29,21 +29,21 @@ async function runCi(parsers, options = {}) {
 		{
 			name: "build",
 			run: async () => {
-				const { runBuild } = await import("./build-CDtiAOLH.js");
+				const { runBuild } = await import("./build-BBGtbym9.js");
 				return runBuild(parsers, { quiet: true });
 			}
 		},
 		{
 			name: "lint",
 			run: async () => {
-				const { runLint } = await import("./lint-CWAc3RIL.js");
+				const { runLint } = await import("./lint-BAk-7ZHC.js");
 				return runLint(parsers, { quiet: true });
 			}
 		},
 		{
 			name: "test",
 			run: async () => {
-				const { runTest } = await import("./test-D4IC8mm4.js");
+				const { runTest } = await import("./test-Dm8mIInj.js");
 				return runTest(parsers, { quiet: true });
 			}
 		},
@@ -85,4 +85,4 @@ async function runCi(parsers, options = {}) {
 //#endregion
 export { runCi };
 
-//# sourceMappingURL=ci-CEW9izda.js.map
+//# sourceMappingURL=ci-D8IF_SZZ.js.map

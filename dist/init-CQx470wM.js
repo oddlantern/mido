@@ -3,7 +3,7 @@ import { r as isRecord } from "./version-M9xRTj7S.js";
 import { a as GREEN, r as DIM, s as ORANGE, t as BOLD, u as RESET } from "./output-MbJ98jNX.js";
 import { t as printBanner } from "./bin.js";
 import { t as loadConfig } from "./loader-CYxgXRd0.js";
-import { n as loadPlugins, t as PluginRegistry } from "./registry-YSQZfaPo.js";
+import { n as loadPlugins, t as PluginRegistry } from "./registry-CdAbh4cA.js";
 import { n as runCheck } from "./check-qJ6B_1Uc.js";
 import { readFile, rm, unlink, writeFile } from "node:fs/promises";
 import { basename, dirname, join, relative, resolve } from "node:path";
@@ -689,7 +689,7 @@ async function promptNextSteps(parsers, summary) {
 	switch (next) {
 		case "dev": {
 			outro(`${ORANGE}Starting watcher...${RESET}`);
-			const { runDev } = await import("./dev-D9FJ058f.js");
+			const { runDev } = await import("./dev-B1eB6s0a.js");
 			return runDev(parsers, {});
 		}
 		case "check":
@@ -1140,7 +1140,7 @@ async function runReconciliation(root, configPath, parsers) {
 		const { unlink } = await import("node:fs/promises");
 		await unlink(configPath);
 		log.step(`Removed broken ${CONFIG_FILENAME}`);
-		const { runInit } = await import("./init-CEAqWauT.js");
+		const { runInit } = await import("./init-CQx470wM.js");
 		return runInit(root, parsers);
 	}
 	s.stop("Scan complete");
@@ -1317,7 +1317,7 @@ async function runReconciliation(root, configPath, parsers) {
 	if (isCancel(installHooks)) handleCancel();
 	let hooksInstalled = false;
 	if (installHooks) {
-		const { runInstall } = await import("./install-Dmkn7G7u.js");
+		const { runInstall } = await import("./install-1BwGj3M6.js");
 		const installResult = await runInstall(root, existing);
 		if (installResult !== 0) return installResult;
 		hooksInstalled = true;
@@ -1480,7 +1480,7 @@ async function runFirstTime(root, configPath, parsers) {
 	if (isCancel(installHooks)) handleCancel();
 	let hooksInstalled = false;
 	if (installHooks) {
-		const { runInstall } = await import("./install-Dmkn7G7u.js");
+		const { runInstall } = await import("./install-1BwGj3M6.js");
 		const installResult = await runInstall(root);
 		if (installResult !== 0) return installResult;
 		hooksInstalled = true;
@@ -1502,4 +1502,4 @@ async function runFirstTime(root, configPath, parsers) {
 //#endregion
 export { runInit };
 
-//# sourceMappingURL=init-CEAqWauT.js.map
+//# sourceMappingURL=init-CQx470wM.js.map

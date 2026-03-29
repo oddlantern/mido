@@ -23,6 +23,8 @@ export interface GenerateOptions {
   readonly verbose?: boolean | undefined;
   /** Skip cache and regenerate everything */
   readonly force?: boolean | undefined;
+  /** Preview changes without writing to disk */
+  readonly dryRun?: boolean | undefined;
 }
 
 /**
@@ -36,7 +38,7 @@ export async function runGenerate(
   parsers: ParserRegistry,
   options: GenerateOptions = {},
 ): Promise<number> {
-  const { quiet = false, verbose = false, force = false } = options;
+  const { quiet = false, verbose = false, force = false, dryRun = false } = options;
   const { config, root } = await loadConfig();
   const graph = await buildWorkspaceGraph(config, root, parsers);
   const plugins = loadPlugins();
@@ -102,7 +104,7 @@ export async function runGenerate(
     }
 
     try {
-      await executeBridgeGroup(group, registry, graph, root, pm, verbose);
+      await executeBridgeGroup(group, registry, graph, root, pm, verbose, dryRun);
       // Only cache if all expected output dirs were actually created
       const allOutputsExist = group.every((r) =>
         r.targets.every((t) => existsSync(join(root, r.bridge.source, "generated", t.ecosystem))),

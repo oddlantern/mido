@@ -10,7 +10,7 @@ import { existsSync } from "node:fs";
 *
 * @returns exit code (0 = success, 1 = error)
 */
-async function runInstall(root, config) {
+async function runInstall(root, options, config) {
 	if (!existsSync(join(root, ".git"))) {
 		console.error("Not a git repository. Run \"git init\" first.");
 		return 1;
@@ -20,6 +20,10 @@ async function runInstall(root, config) {
 		const { loadConfig } = await import("./loader-CYxgXRd0.js").then((n) => n.n);
 		resolvedConfig = (await loadConfig()).config;
 	} catch {}
+	if (options?.dryRun) {
+		console.log("dry-run: would install git hooks to .git/hooks/");
+		return 0;
+	}
 	const { installed, disabled } = await writeHooks(root, resolvedConfig, true);
 	const parts = [];
 	if (installed > 0) parts.push(`${installed} installed`);
@@ -31,4 +35,4 @@ async function runInstall(root, config) {
 //#endregion
 export { runInstall };
 
-//# sourceMappingURL=install-Dmkn7G7u.js.map
+//# sourceMappingURL=install-1BwGj3M6.js.map

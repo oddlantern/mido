@@ -4,9 +4,9 @@ import { c as PASS, r as DIM, t as BOLD, u as RESET } from "./output-MbJ98jNX.js
 import { t as loadConfig } from "./loader-CYxgXRd0.js";
 import { t as buildWorkspaceGraph } from "./workspace-22OBPV16.js";
 import { n as formatDiagnostics, t as DiagnosticCollector } from "./diagnostic-ua3edMsw.js";
-import { n as loadPlugins, t as PluginRegistry } from "./registry-YSQZfaPo.js";
+import { n as loadPlugins, t as PluginRegistry } from "./registry-CdAbh4cA.js";
 import { t as detectPackageManager } from "./pm-detect-BtRYHQXQ.js";
-import { d as logStep, n as groupBridgesByArtifact, o as resolveBridges, s as formatMs, t as executeBridgeGroup } from "./runner-DrxpgGcn.js";
+import { d as logStep, n as groupBridgesByArtifact, o as resolveBridges, s as formatMs, t as executeBridgeGroup } from "./runner-BQvvMff9.js";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
@@ -121,7 +121,7 @@ async function updateCache(root, bridgeKey, artifact, watchPatterns) {
 * @returns exit code (0 = all generated, 1 = failure)
 */
 async function runGenerate(parsers, options = {}) {
-	const { quiet = false, verbose = false, force = false } = options;
+	const { quiet = false, verbose = false, force = false, dryRun = false } = options;
 	const { config, root } = await loadConfig();
 	const graph = await buildWorkspaceGraph(config, root, parsers);
 	const plugins = loadPlugins();
@@ -158,7 +158,7 @@ async function runGenerate(parsers, options = {}) {
 			}
 		}
 		try {
-			await executeBridgeGroup(group, registry, graph, root, pm, verbose);
+			await executeBridgeGroup(group, registry, graph, root, pm, verbose, dryRun);
 			if (group.every((r) => r.targets.every((t) => existsSync(join(root, r.bridge.source, "generated", t.ecosystem))))) await updateCache(root, bridgeKey, first.bridge.artifact, first.watchPatterns);
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
@@ -179,4 +179,4 @@ async function runGenerate(parsers, options = {}) {
 //#endregion
 export { runGenerate };
 
-//# sourceMappingURL=generate-BSpilDW8.js.map
+//# sourceMappingURL=generate-DKUgMT68.js.map

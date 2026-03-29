@@ -219,9 +219,12 @@ async function runPipelineWithProgress(steps, root) {
 /**
 * Execute a single bridge (no artifact grouping).
 */
-async function executeBridge(resolved, registry, graph, root, pm, verbose) {
+async function executeBridge(resolved, registry, graph, root, pm, verbose, dryRun = false) {
 	const bridge = resolved.bridge;
-	const context = registry.createContext(graph, root, pm, { verbose });
+	const context = registry.createContext(graph, root, pm, {
+		verbose,
+		dryRun
+	});
 	if (bridge.run && resolved.sourcePlugin) {
 		logStep(`running "${bridge.run}" on ${resolved.source.name}...`);
 		printResult(await resolved.sourcePlugin.execute(bridge.run, resolved.source, root, context), `${bridge.source} bridge`);
@@ -302,11 +305,11 @@ function groupBridgesByArtifact(bridges) {
 * Execute a group of bridges that share the same artifact.
 * Merges targets from all bridges and runs a single pipeline.
 */
-async function executeBridgeGroup(group, registry, graph, root, pm, verbose) {
+async function executeBridgeGroup(group, registry, graph, root, pm, verbose, dryRun = false) {
 	const first = group[0];
 	if (!first) return;
 	if (group.length === 1) {
-		await executeBridge(first, registry, graph, root, pm, verbose);
+		await executeBridge(first, registry, graph, root, pm, verbose, dryRun);
 		return;
 	}
 	const domain = first.domain;
@@ -316,7 +319,10 @@ async function executeBridgeGroup(group, registry, graph, root, pm, verbose) {
 	}
 	const mergedTargets = [];
 	for (const bridge of group) mergedTargets.push(...bridge.targets);
-	const context = registry.createContext(graph, root, pm, { verbose });
+	const context = registry.createContext(graph, root, pm, {
+		verbose,
+		dryRun
+	});
 	if (verbose) {
 		const targetNames = mergedTargets.map((t) => t.path).join(", ");
 		logDebug(`grouped ${group.length} bridges for artifact ${first.bridge.artifact} → [${targetNames}]`);
@@ -342,4 +348,4 @@ function matchesBridge(relPath, bridge) {
 //#endregion
 export { printStartup as a, logChange as c, logStep as d, logWaiting as f, printBridgeSummary as i, logDebug as l, groupBridgesByArtifact as n, resolveBridges as o, matchesBridge as r, formatMs as s, executeBridgeGroup as t, logFail as u };
 
-//# sourceMappingURL=runner-DrxpgGcn.js.map
+//# sourceMappingURL=runner-BQvvMff9.js.map

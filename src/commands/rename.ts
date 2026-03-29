@@ -1,7 +1,9 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { loadConfig } from "@/config/loader";
+import { createDryFs } from "@/dry-run";
+import type { DryFs } from "@/dry-run";
 import { isRecord } from "@/guards";
 import { GREEN, RED, RESET, YELLOW } from "@/output";
 import type { ManifestParser } from "@/parsers/types";
@@ -54,7 +56,7 @@ function escapeRegex(str: string): string {
 /**
  * Update the workspace name in mido.yml.
  */
-function updateMidoYml(root: string, oldName: string, newName: string): boolean {
+function updateMidoYml(root: string, oldName: string, newName: string, fs: DryFs): boolean {
   const configPath = join(root, "mido.yml");
   if (!existsSync(configPath)) {
     return false;
@@ -70,7 +72,7 @@ function updateMidoYml(root: string, oldName: string, newName: string): boolean 
     return false;
   }
 
-  writeFileSync(configPath, updated, "utf-8");
+  fs.writeFile(configPath, updated, "utf-8");
   return true;
 }
 
@@ -78,7 +80,7 @@ function updateMidoYml(root: string, oldName: string, newName: string): boolean 
  * Update package.json name field (for npm/bun workspaces).
  * Replaces @oldName/ scope with @newName/ scope, or oldName prefix with newName.
  */
-function updatePackageJson(filePath: string, oldName: string, newName: string): boolean {
+function updatePackageJson(filePath: string, oldName: string, newName: string, fs: DryFs): boolean {
   if (!existsSync(filePath)) {
     return false;
   }
@@ -121,7 +123,7 @@ function updatePackageJson(filePath: string, oldName: string, newName: string): 
 
   // Targeted string replacement to preserve formatting
   const updated = content.replace(`"name": "${name}"`, `"name": "${newPkgName}"`);
-  writeFileSync(filePath, updated, "utf-8");
+  fs.writeFile(filePath, updated, "utf-8");
   return true;
 }
 
@@ -129,7 +131,7 @@ function updatePackageJson(filePath: string, oldName: string, newName: string): 
  * Update pubspec.yaml name field.
  * Replaces oldName_ prefix with newName_ prefix.
  */
-function updatePubspec(filePath: string, oldName: string, newName: string): boolean {
+function updatePubspec(filePath: string, oldName: string, newName: string, fs: DryFs): boolean {
   if (!existsSync(filePath)) {
     return false;
   }
@@ -147,7 +149,7 @@ function updatePubspec(filePath: string, oldName: string, newName: string): bool
     return false;
   }
 
-  writeFileSync(filePath, updated, "utf-8");
+  fs.writeFile(filePath, updated, "utf-8");
   return true;
 }
 
@@ -155,7 +157,7 @@ function updatePubspec(filePath: string, oldName: string, newName: string): bool
  * Update dependency references in pubspec.yaml that reference old workspace packages.
  * Only targets lines in dependency sections (indented key: value pairs).
  */
-function updatePubspecDependencies(filePath: string, oldName: string, newName: string): boolean {
+function updatePubspecDependencies(filePath: string, oldName: string, newName: string, fs: DryFs): boolean {
   if (!existsSync(filePath)) {
     return false;
   }
@@ -174,7 +176,7 @@ function updatePubspecDependencies(filePath: string, oldName: string, newName: s
     return false;
   }
 
-  writeFileSync(filePath, updated, "utf-8");
+  fs.writeFile(filePath, updated, "utf-8");
   return true;
 }
 
@@ -218,6 +220,7 @@ function renamePlatformIdentifiers(
   ecosystemPaths: readonly string[],
   oldName: string,
   newName: string,
+  fs: DryFs,
 ): readonly string[] {
   const updated: string[] = [];
   const appDirs = [...ecosystemPaths, "."];
@@ -243,7 +246,7 @@ function renamePlatformIdentifiers(
         }
         const newContent = content.replace(oldValue, newValue);
         if (newContent !== content) {
-          writeFileSync(filePath, newContent, "utf-8");
+          fs.writeFile(filePath, newContent, "utf-8");
           updated.push(`${appDir}/${entry.path}`);
         }
       } catch {
@@ -264,7 +267,7 @@ function renamePlatformIdentifiers(
 export async function runRename(
   _parsers: ReadonlyMap<string, ManifestParser>,
   newName: string,
-  options: { readonly includePlatformIds?: boolean },
+  options: { readonly includePlatformIds?: boolean; readonly dryRun?: boolean },
 ): Promise<number> {
   let config;
   try {
@@ -282,12 +285,19 @@ export async function runRename(
     return 0;
   }
 
-  console.log(`\nRenaming workspace: ${oldName} → ${GREEN}${newName}${RESET}\n`);
+  const dryRun = options.dryRun ?? false;
+  const fs = createDryFs(dryRun, root);
+
+  if (dryRun) {
+    console.log(`\n${YELLOW}dry-run${RESET} Renaming workspace: ${oldName} → ${GREEN}${newName}${RESET}\n`);
+  } else {
+    console.log(`\nRenaming workspace: ${oldName} → ${GREEN}${newName}${RESET}\n`);
+  }
 
   const updatedFiles: string[] = [];
 
   // 1. Update mido.yml
-  if (updateMidoYml(root, oldName, newName)) {
+  if (updateMidoYml(root, oldName, newName, fs)) {
     updatedFiles.push("mido.yml");
     console.log(`  ${GREEN}✓${RESET} mido.yml`);
   }
@@ -311,16 +321,16 @@ export async function runRename(
       const manifestPath = join(root, pkgPath, manifestName);
 
       if (ecosystem === "typescript") {
-        if (updatePackageJson(manifestPath, oldName, newName)) {
+        if (updatePackageJson(manifestPath, oldName, newName, fs)) {
           updatedFiles.push(`${pkgPath}/${manifestName}`);
           console.log(`  ${GREEN}✓${RESET} ${pkgPath}/${manifestName}`);
         }
       } else {
-        if (updatePubspec(manifestPath, oldName, newName)) {
+        if (updatePubspec(manifestPath, oldName, newName, fs)) {
           updatedFiles.push(`${pkgPath}/${manifestName}`);
           console.log(`  ${GREEN}✓${RESET} ${pkgPath}/${manifestName}`);
         }
-        if (updatePubspecDependencies(manifestPath, oldName, newName)) {
+        if (updatePubspecDependencies(manifestPath, oldName, newName, fs)) {
           console.log(`  ${GREEN}✓${RESET} ${pkgPath}/${manifestName} (dependencies)`);
         }
       }
@@ -329,7 +339,7 @@ export async function runRename(
 
   // 4. Also check root package.json
   const rootPkgJson = join(root, "package.json");
-  if (updatePackageJson(rootPkgJson, oldName, newName)) {
+  if (updatePackageJson(rootPkgJson, oldName, newName, fs)) {
     updatedFiles.push("package.json");
     console.log(`  ${GREEN}✓${RESET} package.json`);
   }
@@ -340,7 +350,7 @@ export async function runRename(
   if (platformWarnings.length > 0) {
     if (options.includePlatformIds) {
       console.log(`\n${YELLOW}Renaming platform identifiers:${RESET}`);
-      const renamedPlatform = renamePlatformIdentifiers(root, allPkgPaths, oldName, newName);
+      const renamedPlatform = renamePlatformIdentifiers(root, allPkgPaths, oldName, newName, fs);
       for (const file of renamedPlatform) {
         console.log(`  ${GREEN}✓${RESET} ${file}`);
         updatedFiles.push(file);

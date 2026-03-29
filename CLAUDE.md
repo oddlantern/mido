@@ -10,6 +10,7 @@ scripts/
 src/
   bin.ts                 # CLI entry point, command router
   banner.ts              # ASCII banner renderer
+  dry-run.ts             # DryFs wrapper — logs instead of writing when dryRun=true
   guards.ts              # isRecord type guard for safe narrowing
   hooks.ts               # Git hook resolution, conflict detection, file writing
   lock.ts                # mido.lock read/write/merge
@@ -172,6 +173,7 @@ src/
 - **`mido rename` cascades workspace name.** Updates mido.yml, all package.json names (@scope), all pubspec.yaml names (prefix_), then reminds to run `mido generate` to propagate into generated code. Platform identifiers (iOS bundle ID, Android application ID, Firebase config) are detected and warned about but NOT renamed by default — they are deployment identities. `--include-platform-ids` overrides this for pre-release projects.
 - **Plugin directory structure: ecosystem/ + domain/.** Ecosystem plugins live in `builtin/ecosystem/{name}/plugin.ts`. Domain plugins live in `builtin/domain/{name}/plugin.ts`. This makes the two-tier architecture visible in the filesystem. Naming convention for future extraction: `mido-{name}-ecosystem` and `mido-{name}-domain`.
 - **No parent-relative imports.** All cross-directory imports use `@/` path aliases resolved via tsconfig `paths`. No `../` imports — use `@/` aliases instead. Same-directory imports (`./`) are allowed. Extensions are omitted (bundler resolution). This eliminates brittle path math when files move.
+- **`--dry-run` is a cross-cutting concern.** `ExecutionContext` has a `dryRun` boolean that flows through the plugin system. Commands that write to disk (`generate`, `rename`, `install`, `upgrade`) accept `--dry-run`. The `createDryFs(dryRun, root)` factory in `src/dry-run.ts` returns a `DryFs` wrapper — when dry-run is true, `writeFile`/`mkdir`/`cp` log what would happen instead of executing. Plugins receive `context.dryRun` and can use `createDryFs` for their own I/O.
 
 ## Bridge Fields
 
