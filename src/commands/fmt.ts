@@ -20,8 +20,5 @@ export async function runFmt(parsers: ParserRegistry, options: FmtOptions = {}):
   return runEcosystemCommand(parsers, rest, {
     action,
     ignoreSource: "format",
-    summary: check
-      ? ["All files formatted", "Formatting issues found"]
-      : ["All formatted", "Formatting failed"],
   });
 }

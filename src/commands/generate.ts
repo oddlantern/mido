@@ -2,9 +2,10 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 
 import { loadConfig } from "../config/loader.js";
+import { DiagnosticCollector, formatDiagnostics } from "../diagnostic.js";
 import { buildWorkspaceGraph } from "../graph/workspace.js";
 import type { ParserRegistry } from "../graph/workspace.js";
-import { BOLD, DIM, FAIL, PASS, RESET } from "../output.js";
+import { BOLD, DIM, PASS, RESET } from "../output.js";
 import { loadPlugins } from "../plugins/loader.js";
 import { PluginRegistry } from "../plugins/registry.js";
 import { detectPackageManager } from "../pm-detect.js";
@@ -65,7 +66,7 @@ export async function runGenerate(
   }
 
   const groups = groupBridgesByArtifact(resolved);
-  let hasErrors = false;
+  const diag = new DiagnosticCollector();
   let skipped = 0;
   const start = performance.now();
 
@@ -110,20 +111,24 @@ export async function runGenerate(
         await updateCache(root, bridgeKey, first.bridge.artifact, first.watchPatterns);
       }
     } catch (err: unknown) {
-      hasErrors = true;
       const msg = err instanceof Error ? err.message : String(err);
-      console.error(`${FAIL} ${msg}`);
+      diag.error(`Bridge failed: ${bridgeKey}`, {
+        detail: msg,
+        fix: "Check bridge source files and re-run mido generate --force",
+      });
     }
   }
 
   const duration = Math.round(performance.now() - start);
   if (!quiet) {
-    const icon = hasErrors ? FAIL : PASS;
     const skipNote = skipped > 0 ? ` ${DIM}(${skipped} cached)${RESET}` : "";
-    console.log(
-      `\n${icon} ${resolved.length} bridge(s) processed (${formatMs(duration)})${hasErrors ? " (with errors)" : ""}${skipNote}\n`,
-    );
+    if (!diag.hasErrors) {
+      console.log(
+        `\n${PASS} ${resolved.length} bridge(s) processed (${formatMs(duration)})${skipNote}`,
+      );
+    }
+    console.log(formatDiagnostics(diag, resolved.length - skipped));
   }
 
-  return hasErrors ? 1 : 0;
+  return diag.hasErrors ? 1 : 0;
 }

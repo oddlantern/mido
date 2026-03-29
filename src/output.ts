@@ -44,11 +44,12 @@ export function formatCheckResult(result: CheckResult): string {
   return `${header}\n${issueLines}`;
 }
 
+export const SEPARATOR_WIDTH = 48;
+
 export function formatSummary(results: readonly CheckResult[]): string {
   const passed = results.filter((r) => r.passed).length;
   const failed = results.length - passed;
 
-  const SEPARATOR_WIDTH = 48;
   const line = "─".repeat(SEPARATOR_WIDTH);
 
   if (failed === 0) {

@@ -1,4 +1,5 @@
 import { loadConfig } from "../config/loader.js";
+import { DiagnosticCollector, formatDiagnostics } from "../diagnostic.js";
 import { groupByEcosystem } from "./group.js";
 import { buildWorkspaceGraph } from "../graph/workspace.js";
 import type { ParserRegistry } from "../graph/workspace.js";
@@ -56,7 +57,7 @@ export async function runBuild(
 
   const grouped = groupByEcosystem(graph.packages, options);
   const libraryPaths = options.all ? null : findLibraryPaths(graph.packages);
-  let hasErrors = false;
+  const diag = new DiagnosticCollector();
   let builtCount = 0;
   let skippedApps = 0;
 
@@ -96,10 +97,14 @@ export async function runBuild(
 
       const result = await plugin.execute(STANDARD_ACTIONS.BUILD, pkg, root, context);
 
-      if (!result.success) {
-        hasErrors = true;
-      } else {
+      if (result.success) {
         builtCount++;
+      } else {
+        const firstLine = result.output?.trim().split("\n")[0] ?? "";
+        diag.error(`Build failed: ${pkg.path}`, {
+          detail: firstLine,
+          fix: `Run mido build --package ${pkg.path} for full output`,
+        });
       }
 
       if (quiet && result.success) {
@@ -124,11 +129,13 @@ export async function runBuild(
     }
   }
 
-  if (!quiet) {
-    const icon = hasErrors ? FAIL : PASS;
-    const appNote = skippedApps > 0 ? ` ${DIM}(${skippedApps} app(s) skipped)${RESET}` : "";
-    console.log(`\n${icon} ${builtCount} package(s) built${hasErrors ? " (with errors)" : ""}${appNote}\n`);
+  if (!quiet || diag.hasIssues) {
+    const appNote = skippedApps > 0 ? `${DIM}(${skippedApps} app(s) skipped)${RESET}` : "";
+    if (appNote) {
+      console.log(`\n${appNote}`);
+    }
+    console.log(formatDiagnostics(diag, builtCount));
   }
 
-  return hasErrors ? 1 : 0;
+  return diag.hasErrors ? 1 : 0;
 }

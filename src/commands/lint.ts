@@ -20,6 +20,5 @@ export async function runLint(parsers: ParserRegistry, options: LintOptions = {}
   return runEcosystemCommand(parsers, rest, {
     action,
     ignoreSource: "lint",
-    summary: ["All package(s) clean", "Lint errors found"],
   });
 }

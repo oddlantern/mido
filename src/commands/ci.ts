@@ -1,3 +1,4 @@
+import { DiagnosticCollector, formatDiagnostics } from "../diagnostic.js";
 import type { ParserRegistry } from "../graph/workspace.js";
 import { BOLD, DIM, FAIL, GREEN, PASS, RESET } from "../output.js";
 
@@ -11,11 +12,12 @@ interface StepResult {
   readonly duration: number;
 }
 
+const MS_PER_SECOND = 1000;
+
 /**
  * Run the full CI pipeline: generate → build → lint → test → check.
  *
- * Each step runs sequentially. Stops on first failure unless --continue is used.
- * Designed to replace bespoke CI configs with a single `mido ci` command.
+ * Each step runs sequentially. Stops on first failure.
  *
  * @returns exit code (0 = all passed, 1 = failure)
  */
@@ -24,6 +26,7 @@ export async function runCi(parsers: ParserRegistry, options: CiOptions = {}): P
 
   console.log(`\n${BOLD}mido ci${RESET} ${DIM}— full pipeline${RESET}\n`);
 
+  const diag = new DiagnosticCollector();
   const results: StepResult[] = [];
 
   const steps: ReadonlyArray<{
@@ -67,8 +70,6 @@ export async function runCi(parsers: ParserRegistry, options: CiOptions = {}): P
     },
   ];
 
-  let failed = false;
-
   for (const step of steps) {
     const start = performance.now();
     console.log(`  ${DIM}▸${RESET} ${step.name}...`);
@@ -78,25 +79,27 @@ export async function runCi(parsers: ParserRegistry, options: CiOptions = {}): P
     results.push({ name: step.name, exitCode, duration });
 
     const icon = exitCode === 0 ? PASS : FAIL;
-    const ms = duration >= 1000 ? `${(duration / 1000).toFixed(1)}s` : `${duration}ms`;
+    const ms = duration >= MS_PER_SECOND ? `${(duration / MS_PER_SECOND).toFixed(1)}s` : `${duration}ms`;
     console.log(`  ${icon} ${step.name} (${ms})`);
 
     if (exitCode !== 0) {
-      failed = true;
+      diag.error(`${step.name} failed`, {
+        detail: `exit code ${exitCode}`,
+        fix: `Run mido ${step.name} for full output`,
+      });
       break;
     }
   }
 
-  console.log();
+  const totalDuration = results.reduce((sum, r) => sum + r.duration, 0);
+  const totalMs = totalDuration >= MS_PER_SECOND
+    ? `${(totalDuration / MS_PER_SECOND).toFixed(1)}s`
+    : `${totalDuration}ms`;
 
-  if (failed) {
-    const failedStep = results.find((r) => r.exitCode !== 0);
-    console.log(`${FAIL} ${BOLD}CI failed${RESET} at ${failedStep?.name ?? "unknown"}\n`);
-    return 1;
+  if (!diag.hasErrors) {
+    console.log(`\n${GREEN}${BOLD}CI passed${RESET} ${DIM}(${totalMs})${RESET}`);
   }
 
-  const totalDuration = results.reduce((sum, r) => sum + r.duration, 0);
-  const totalMs = totalDuration >= 1000 ? `${(totalDuration / 1000).toFixed(1)}s` : `${totalDuration}ms`;
-  console.log(`${GREEN}${BOLD}CI passed${RESET} ${DIM}(${totalMs})${RESET}\n`);
-  return 0;
+  console.log(formatDiagnostics(diag, steps.length));
+  return diag.hasErrors ? 1 : 0;
 }
