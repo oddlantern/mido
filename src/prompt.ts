@@ -1,4 +1,4 @@
-import { confirm, isCancel, select, text, cancel } from "@clack/prompts";
+import { confirm, isCancel, multiselect, select, text, cancel } from "@clack/prompts";
 
 export class CancelError extends Error {
   constructor() {
@@ -85,6 +85,31 @@ export async function confirmAction(message: string, defaultValue = true): Promi
   if (isCancel(result)) {
     handleCancel();
   }
+  return result;
+}
+
+/** Interactive multi-select for choosing items. */
+export async function promptMultiSelect(
+  message: string,
+  options: readonly { readonly value: string; readonly label: string; readonly hint?: string }[],
+): Promise<readonly string[]> {
+  const msOptions = options.map((o) => {
+    const item: { value: string; label: string; hint?: string } = {
+      value: o.value,
+      label: o.label,
+    };
+    if (o.hint !== undefined) {
+      item.hint = o.hint;
+    }
+    return item;
+  });
+
+  const result = await multiselect({ message, options: msOptions });
+
+  if (isCancel(result)) {
+    handleCancel();
+  }
+
   return result;
 }
 

@@ -15,6 +15,5 @@ export async function runTest(parsers: ParserRegistry, options: TestOptions = {}
   return runEcosystemCommand(parsers, options, {
     action: STANDARD_ACTIONS.TEST,
     ignoreSource: "lint",
-    summary: ["All tests passed", "Test failures found"],
   });
 }

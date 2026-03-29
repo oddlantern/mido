@@ -87,7 +87,8 @@ src/
     install.ts           # Write git hooks to .git/hooks/
     lint.ts              # Run linters across all packages per ecosystem
     migrate.ts           # Migrate external tool configs into mido.yml
-    outdated.ts          # Cross-ecosystem dependency freshness (npm + pub.dev)
+    outdated.ts          # Progressive dependency analysis orchestrator (L1→L2→L3)
+    upgrade.ts           # Interactive dependency upgrade with lock/manifest sync
     pre-commit.ts        # Full pre-commit suite: fmt --check → lint → check --quiet
     reconcile.ts         # Reconciliation mode when mido.yml already exists
     test.ts              # Run tests across all packages per ecosystem
@@ -97,6 +98,18 @@ src/
       prompts.ts         # Bridge prompt flows (watch, modify, additional)
       cleanup.ts         # Tool detection, migration table, dependency removal
       config-render.ts   # YAML rendering + default config builder
+  outdated/
+    types.ts             # All interfaces for the outdated analysis subsystem
+    schemas.ts           # Zod schemas for npm/pub.dev API responses
+    collect.ts           # Dependency collection, stripRange, classifyUpdate
+    registry.ts          # Enhanced registry fetching (deprecation, peers, changelog)
+    risk.ts              # Risk scoring algorithm (0-100 composite)
+    level1.ts            # Level 1: registry scan with enriched metadata
+    tarball.ts           # Tarball download + extraction (Node built-ins only)
+    api-diff.ts          # Export extraction + diffing per ecosystem (TS/Dart)
+    level2.ts            # Level 2: static API surface diff
+    level3.ts            # Level 3: live validation (temp dir + typecheck + tests)
+    display.ts           # Console output formatting for all levels
   discovery/
     scanner.ts           # Filesystem scanning for ecosystem markers
     heuristics.ts        # Bridge and ecosystem detection heuristics
@@ -114,7 +127,9 @@ src/
 
 - **Parsers are the plugin boundary.** Adding a new ecosystem = one file implementing `ManifestParser`. Everything upstream is ecosystem-agnostic.
 - **The graph is the core data structure.** Every command loads config → builds graph → operates on graph. Never bypass the graph.
-- **`mido.lock` is the version policy.** When it exists, `mido check` validates manifests against the lock, not just against each other.
+- **`mido.lock` is the version policy.** When it exists, `mido check` validates manifests against the lock, not just against each other. `mido upgrade` updates manifests and the lock atomically.
+- **Progressive dependency analysis.** `mido outdated` offers three incremental levels: Level 1 (registry scan — deprecation, peer conflicts, risk scores), Level 2 (static API surface diff — tarball download + export diffing), Level 3 (live validation — temp dir + typecheck + tests). Each level is offered after the previous completes. `--deep` forces L2, `--verify` forces L1+L2+L3, `--json`/`--ci` stop at L1.
+- **No new runtime dependencies for outdated analysis.** Tarball extraction uses Node's built-in `zlib.gunzipSync()` + a minimal tar header parser. Export diffing uses regex heuristics on `.d.ts` / `.dart` files. No `tar`, `semver`, or other packages added.
 - **mido owns git hooks.** `mido install` writes hooks to `.git/hooks/`. No Husky, no commitlint — mido handles pre-commit, commit-msg, post-merge, and post-checkout.
 - **Config auto-migration pipeline.** The loader runs all migrations on every `loadConfig()` call. Each migration is idempotent — running an already-migrated config is a no-op. Migrations are defined in `src/config/loader.ts` as `Migration` objects with a `label` and `run` function. To add a new migration: write a `(doc: Document) => boolean` function and append it to `MIGRATIONS`. Current migrations: bridge field renames (v0.0.3), flat lint/format → ecosystem-centric (v0.0.32), commits-under-lint → top-level (v0.0.32).
 - **Node.js target for distribution.** The published CLI must run on plain Node.js (>=20.19). No Bun-specific APIs in source. `#!/usr/bin/env node` shebang. Development uses Bun.

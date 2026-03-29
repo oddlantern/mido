@@ -42,7 +42,8 @@ Development:
 Workspace health:
   check [--fix]     Version consistency, bridge validation, env parity
   doctor            Diagnostic: config, hooks, tools, generated output
-  outdated          Check for newer dependency versions
+  outdated          Check for newer dependency versions (--deep, --verify)
+  upgrade           Upgrade outdated dependencies (--all, --verify)
   why <dep>         Show which packages use a dependency
   graph             Interactive D3.js dependency graph (--dot, --ascii)
 
@@ -168,8 +169,19 @@ async function main(): Promise<void> {
 
   if (command === "outdated") {
     const json = args.includes("--json");
+    const deep = args.includes("--deep");
+    const verify = args.includes("--verify");
+    const ci = args.includes("--ci");
     const { runOutdated } = await import("./commands/outdated.js");
-    const exitCode = await runOutdated(parsers, { json });
+    const exitCode = await runOutdated(parsers, { json, deep, verify, ci });
+    process.exit(exitCode);
+  }
+
+  if (command === "upgrade") {
+    const all = args.includes("--all");
+    const verify = args.includes("--verify");
+    const { runUpgrade } = await import("./commands/upgrade.js");
+    const exitCode = await runUpgrade(parsers, { all, verify });
     process.exit(exitCode);
   }
 

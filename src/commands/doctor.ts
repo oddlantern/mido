@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { loadConfig } from "../config/loader.js";
 import { buildWorkspaceGraph } from "../graph/workspace.js";
 import type { ParserRegistry } from "../graph/workspace.js";
-import { BOLD, DIM, FAIL, GREEN, PASS, RESET, YELLOW } from "../output.js";
+import { BOLD, DIM, FAIL, GREEN, PASS, RED, RESET, YELLOW } from "../output.js";
 import { VERSION } from "../version.js";
 
 const WARN = `${YELLOW}!${RESET}`;

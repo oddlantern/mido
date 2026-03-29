@@ -1,6 +1,7 @@
 import { join } from "node:path";
 
 import { loadConfig } from "../config/loader.js";
+import { DiagnosticCollector, formatDiagnostics } from "../diagnostic.js";
 import { resolveFiles } from "../files/resolver.js";
 import { buildWorkspaceGraph } from "../graph/workspace.js";
 import type { ParserRegistry } from "../graph/workspace.js";
@@ -27,8 +28,6 @@ export interface EcosystemRunnerConfig {
   readonly action: string;
   /** Config key for ignore patterns ("lint" or "format") */
   readonly ignoreSource: "lint" | "format";
-  /** Summary messages: [successMsg, failMsg] */
-  readonly summary: readonly [string, string];
 }
 
 /**
@@ -62,7 +61,7 @@ export async function runEcosystemCommand(
   );
 
   const grouped = groupByEcosystem(graph.packages, options);
-  let hasErrors = false;
+  const diag = new DiagnosticCollector();
 
   for (const [ecosystem, packages] of grouped) {
     if (!quiet) {
@@ -105,7 +104,10 @@ export async function runEcosystemCommand(
 
     for (const { pkg, result } of results) {
       if (!result.success) {
-        hasErrors = true;
+        const firstLine = result.output?.trim().split("\n")[0] ?? "";
+        diag.error(`${runnerConfig.action} failed: ${pkg.path}`, {
+          detail: firstLine,
+        });
       }
 
       if (quiet && result.success) {
@@ -128,11 +130,9 @@ export async function runEcosystemCommand(
     }
   }
 
-  if (!quiet) {
-    const icon = hasErrors ? FAIL : PASS;
-    const msg = hasErrors ? runnerConfig.summary[1] : runnerConfig.summary[0];
-    console.log(`\n${icon} ${msg}\n`);
+  if (!quiet || diag.hasIssues) {
+    console.log(formatDiagnostics(diag));
   }
 
-  return hasErrors ? 1 : 0;
+  return diag.hasErrors ? 1 : 0;
 }

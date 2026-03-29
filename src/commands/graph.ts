@@ -344,7 +344,7 @@ export async function runGraph(
       const openCmd = process.platform === "darwin" ? "open" : process.platform === "win32" ? "start" : "xdg-open";
       spawn(openCmd, [outputPath], { stdio: "ignore" });
     } catch {
-      // Can't open browser — user can open manually
+      console.log(`${DIM}\u2192 Could not open browser. Open ${outputPath} manually.${RESET}`);
     }
   }
 
