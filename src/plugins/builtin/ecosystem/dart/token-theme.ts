@@ -63,6 +63,53 @@ function expandShortHex(hex: string): string {
 }
 
 /**
+ * Convert a font family name to a GoogleFonts method name.
+ * e.g., "Playfair Display" → "playfairDisplay", "Merriweather" → "merriweather"
+ */
+function toGoogleFontsMethod(familyName: string): string {
+  return familyName
+    .split(" ")
+    .map((w, i) => (i === 0 ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1)))
+    .join("");
+}
+
+/**
+ * Generate a font style expression for the given provider.
+ */
+function fontStyleExpr(
+  provider: string,
+  familyName: string,
+  opts: { readonly size: number; readonly weight: number; readonly color: string },
+): string {
+  if (provider === "google_fonts") {
+    const method = toGoogleFontsMethod(familyName);
+    return `GoogleFonts.${method}(fontSize: ${opts.size}, fontWeight: FontWeight.w${opts.weight}, color: ${opts.color})`;
+  }
+  if (provider === "asset") {
+    return `TextStyle(fontFamily: '${familyName}', fontSize: ${opts.size}, fontWeight: FontWeight.w${opts.weight}, color: ${opts.color})`;
+  }
+  return `TextStyle(fontSize: ${opts.size}, fontWeight: FontWeight.w${opts.weight}, color: ${opts.color})`;
+}
+
+/**
+ * Generate a short font style expression (no color — for button text styles, etc.)
+ */
+function fontStyleExprNoColor(
+  provider: string,
+  familyName: string,
+  opts: { readonly size: number; readonly weight: number },
+): string {
+  if (provider === "google_fonts") {
+    const method = toGoogleFontsMethod(familyName);
+    return `GoogleFonts.${method}(fontSize: ${opts.size}, fontWeight: FontWeight.w${opts.weight})`;
+  }
+  if (provider === "asset") {
+    return `TextStyle(fontFamily: '${familyName}', fontSize: ${opts.size}, fontWeight: FontWeight.w${opts.weight})`;
+  }
+  return `TextStyle(fontSize: ${opts.size}, fontWeight: FontWeight.w${opts.weight})`;
+}
+
+/**
  * Generate ThemeExtension classes — one per custom extension section.
  * All extension fields are themed colors (light/dark pairs).
  */
@@ -154,12 +201,11 @@ export function generateThemeExtensions(tokens: ValidatedTokens): string {
     lines.push("  }");
     lines.push("");
 
-    // byKey — lookup by string key (useful for API-driven values like genre keys)
+    // byKey
     const firstField = fieldNames[0] ?? "brand";
     lines.push("  /// Look up a color by its key name. Returns first color for unknown keys.");
     lines.push("  Color byKey(String key) => switch (key) {");
     for (const name of fieldNames) {
-      // Convert camelCase to kebab-case for matching (e.g., sciFi → sci-fi)
       const kebab = name.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
       if (kebab !== name) {
         lines.push(`    '${kebab}' || '${name}' => ${name},`);
@@ -182,12 +228,19 @@ export function generateThemeExtensions(tokens: ValidatedTokens): string {
 }
 
 /**
- * Generate the ThemeData assembly file.
+ * Generate the full ThemeData assembly file with M3 widget themes.
  */
 export function generateTheme(tokens: ValidatedTokens, packageName: string): string {
   const extEntries = Object.entries(tokens.extensions);
   const typo = tokens.standard.typography;
   const provider = typo?.provider ?? "asset";
+
+  // Resolve the "UI" font (sans/body font) for widget theme text styles
+  const uiFontFamily = typo?.fontFamily["sans"] ?? typo?.fontFamily["body"] ?? Object.values(typo?.fontFamily ?? {})[0] ?? "sans-serif";
+  const hasSpacing = Object.keys(tokens.standard.spacing).length > 0;
+  const hasRadius = Object.keys(tokens.standard.radius).length > 0;
+  const hasElevation = Object.keys(tokens.standard.elevation).length > 0;
+  const hasIconSize = Object.keys(tokens.standard.iconSize).length > 0;
 
   const lines: string[] = [HEADER, ""];
 
@@ -227,7 +280,7 @@ export function generateTheme(tokens: ValidatedTokens, packageName: string): str
   lines.push("    final r = (this.r * 255).round().toRadixString(16).padLeft(2, '0');");
   lines.push("    final g = (this.g * 255).round().toRadixString(16).padLeft(2, '0');");
   lines.push("    final b = (this.b * 255).round().toRadixString(16).padLeft(2, '0');");
-  lines.push("    return '#$r$g$b';");
+  lines.push("    return '#\\$r\\$g\\$b';");
   lines.push("  }");
   lines.push("}");
   lines.push("");
@@ -274,14 +327,427 @@ export function generateTheme(tokens: ValidatedTokens, packageName: string): str
   }
 
   if (typo?.fontFamily) {
-    // Use first font family as default
-    const firstFamily = Object.values(typo.fontFamily)[0];
-    if (firstFamily) {
-      lines.push(`      fontFamily: '${firstFamily}',`);
-    }
+    lines.push(`      fontFamily: '${uiFontFamily}',`);
   }
 
   lines.push("      textTheme: _buildTextTheme(scheme),");
+  lines.push("");
+
+  // ─── M3 Widget Themes ──────────────────────────────────────────────────
+
+  // AppBarTheme
+  lines.push("      // AppBar");
+  lines.push("      appBarTheme: AppBarTheme(");
+  if (hasElevation) {
+    lines.push("        elevation: DSElevation.none,");
+    lines.push("        scrolledUnderElevation: DSElevation.lg,");
+  }
+  lines.push("        backgroundColor: scheme.surface,");
+  lines.push("        foregroundColor: scheme.onSurface,");
+  lines.push("        surfaceTintColor: scheme.surfaceTint,");
+  lines.push("        centerTitle: true,");
+  lines.push(`        titleTextStyle: ${fontStyleExpr(provider, uiFontFamily, { size: 22, weight: 600, color: "scheme.onSurface" })},`);
+  if (hasIconSize) {
+    lines.push("        iconTheme: IconThemeData(size: DSIconSize.md),");
+  }
+  lines.push("      ),");
+  lines.push("");
+
+  // BottomSheetTheme
+  lines.push("      // BottomSheet");
+  lines.push("      bottomSheetTheme: BottomSheetThemeData(");
+  lines.push("        backgroundColor: scheme.surface,");
+  lines.push("        modalBackgroundColor: scheme.surface,");
+  if (hasElevation) {
+    lines.push("        elevation: DSElevation.none,");
+    lines.push("        modalElevation: DSElevation.none,");
+  }
+  if (hasRadius) {
+    lines.push("        shape: const RoundedRectangleBorder(");
+    lines.push("          borderRadius: BorderRadius.vertical(top: Radius.circular(DSRadius.xl)),");
+    lines.push("        ),");
+  }
+  lines.push("        surfaceTintColor: Colors.transparent,");
+  lines.push("        showDragHandle: true,");
+  lines.push("        dragHandleColor: scheme.onSurfaceVariant.withValues(alpha: 0.4),");
+  lines.push("        dragHandleSize: const Size(32, 4),");
+  lines.push("      ),");
+  lines.push("");
+
+  // DialogTheme
+  lines.push("      // Dialog");
+  lines.push("      dialogTheme: DialogThemeData(");
+  lines.push("        backgroundColor: scheme.surfaceContainerHigh,");
+  if (hasElevation) {
+    lines.push("        elevation: DSElevation.xxl,");
+  }
+  if (hasRadius) {
+    lines.push("        shape: RoundedRectangleBorder(borderRadius: DSRadius.xlAll),");
+  }
+  lines.push("        surfaceTintColor: scheme.surfaceTint,");
+  lines.push("      ),");
+  lines.push("");
+
+  // CardTheme
+  lines.push("      // Card");
+  lines.push("      cardTheme: CardThemeData(");
+  if (hasElevation) {
+    lines.push("        elevation: DSElevation.sm,");
+  }
+  lines.push("        color: scheme.surfaceContainerLow,");
+  lines.push("        surfaceTintColor: scheme.surfaceTint,");
+  if (hasRadius) {
+    lines.push("        shape: RoundedRectangleBorder(");
+    lines.push("          borderRadius: DSRadius.lgAll,");
+    lines.push("          side: BorderSide(color: scheme.outlineVariant),");
+    lines.push("        ),");
+  }
+  lines.push("        margin: EdgeInsets.zero,");
+  lines.push("      ),");
+  lines.push("");
+
+  // FilledButton
+  const btnTextStyle = fontStyleExprNoColor(provider, uiFontFamily, { size: 14, weight: 600 });
+  lines.push("      // Buttons");
+  lines.push("      filledButtonTheme: FilledButtonThemeData(");
+  lines.push("        style: FilledButton.styleFrom(");
+  if (hasElevation) {
+    lines.push("          elevation: DSElevation.none,");
+  }
+  if (hasRadius) {
+    lines.push("          shape: RoundedRectangleBorder(borderRadius: DSRadius.mdAll),");
+  }
+  if (hasSpacing) {
+    lines.push("          padding: const EdgeInsets.symmetric(horizontal: DSSpacing.lg, vertical: DSSpacing.md),");
+  }
+  lines.push("          minimumSize: const Size(64, 48),");
+  lines.push(`          textStyle: ${btnTextStyle},`);
+  lines.push("        ),");
+  lines.push("      ),");
+
+  // ElevatedButton
+  lines.push("      elevatedButtonTheme: ElevatedButtonThemeData(");
+  lines.push("        style: ElevatedButton.styleFrom(");
+  if (hasElevation) {
+    lines.push("          elevation: DSElevation.sm,");
+  }
+  if (hasRadius) {
+    lines.push("          shape: RoundedRectangleBorder(borderRadius: DSRadius.mdAll),");
+  }
+  lines.push("          backgroundColor: scheme.surfaceContainerLow,");
+  lines.push("          foregroundColor: scheme.primary,");
+  if (hasSpacing) {
+    lines.push("          padding: const EdgeInsets.symmetric(horizontal: DSSpacing.lg, vertical: DSSpacing.md),");
+  }
+  lines.push("          minimumSize: const Size(64, 48),");
+  lines.push(`          textStyle: ${btnTextStyle},`);
+  lines.push("        ),");
+  lines.push("      ),");
+
+  // OutlinedButton
+  lines.push("      outlinedButtonTheme: OutlinedButtonThemeData(");
+  lines.push("        style: OutlinedButton.styleFrom(");
+  if (hasElevation) {
+    lines.push("          elevation: DSElevation.none,");
+  }
+  if (hasRadius) {
+    lines.push("          shape: RoundedRectangleBorder(borderRadius: DSRadius.mdAll),");
+  }
+  lines.push("          side: BorderSide(color: scheme.outline),");
+  if (hasSpacing) {
+    lines.push("          padding: const EdgeInsets.symmetric(horizontal: DSSpacing.lg, vertical: DSSpacing.md),");
+  }
+  lines.push("          minimumSize: const Size(64, 48),");
+  lines.push(`          textStyle: ${btnTextStyle},`);
+  lines.push("        ),");
+  lines.push("      ),");
+
+  // TextButton
+  lines.push("      textButtonTheme: TextButtonThemeData(");
+  lines.push("        style: TextButton.styleFrom(");
+  if (hasRadius) {
+    lines.push("          shape: RoundedRectangleBorder(borderRadius: DSRadius.mdAll),");
+  }
+  if (hasSpacing) {
+    lines.push("          padding: const EdgeInsets.symmetric(horizontal: DSSpacing.base, vertical: DSSpacing.md),");
+  }
+  lines.push("          minimumSize: const Size(64, 48),");
+  lines.push(`          textStyle: ${btnTextStyle},`);
+  lines.push("        ),");
+  lines.push("      ),");
+
+  // IconButton
+  lines.push("      iconButtonTheme: IconButtonThemeData(");
+  lines.push("        style: IconButton.styleFrom(");
+  lines.push("          minimumSize: const Size(48, 48),");
+  if (hasIconSize) {
+    lines.push("          iconSize: DSIconSize.md,");
+  }
+  lines.push("        ),");
+  lines.push("      ),");
+  lines.push("");
+
+  // FAB
+  lines.push("      // FAB");
+  lines.push("      floatingActionButtonTheme: FloatingActionButtonThemeData(");
+  if (hasElevation) {
+    lines.push("        elevation: DSElevation.lg,");
+    lines.push("        highlightElevation: DSElevation.xl,");
+  }
+  lines.push("        backgroundColor: scheme.primaryContainer,");
+  lines.push("        foregroundColor: scheme.onPrimaryContainer,");
+  if (hasRadius) {
+    lines.push("        shape: RoundedRectangleBorder(borderRadius: DSRadius.lgAll),");
+  }
+  lines.push("      ),");
+  lines.push("");
+
+  // InputDecoration
+  lines.push("      // Input");
+  lines.push("      inputDecorationTheme: InputDecorationTheme(");
+  lines.push("        filled: true,");
+  lines.push("        fillColor: scheme.surfaceContainerHighest,");
+  if (hasRadius) {
+    lines.push("        border: OutlineInputBorder(borderRadius: DSRadius.mdAll, borderSide: BorderSide(color: scheme.outline)),");
+    lines.push("        enabledBorder: OutlineInputBorder(borderRadius: DSRadius.mdAll, borderSide: BorderSide(color: scheme.outline)),");
+    lines.push("        focusedBorder: OutlineInputBorder(borderRadius: DSRadius.mdAll, borderSide: BorderSide(color: scheme.primary, width: 2)),");
+    lines.push("        errorBorder: OutlineInputBorder(borderRadius: DSRadius.mdAll, borderSide: BorderSide(color: scheme.error)),");
+    lines.push("        focusedErrorBorder: OutlineInputBorder(borderRadius: DSRadius.mdAll, borderSide: BorderSide(color: scheme.error, width: 2)),");
+  }
+  if (hasSpacing) {
+    lines.push("        contentPadding: const EdgeInsets.symmetric(horizontal: DSSpacing.base, vertical: DSSpacing.md),");
+  }
+  lines.push("      ),");
+  lines.push("");
+
+  // Chip
+  lines.push("      // Chip");
+  lines.push("      chipTheme: ChipThemeData(");
+  if (hasElevation) {
+    lines.push("        elevation: DSElevation.none,");
+  }
+  lines.push("        backgroundColor: scheme.surfaceContainerLow,");
+  lines.push("        selectedColor: scheme.secondaryContainer,");
+  if (hasRadius) {
+    lines.push("        shape: RoundedRectangleBorder(borderRadius: DSRadius.fullAll),");
+  }
+  lines.push("        side: BorderSide(color: scheme.outlineVariant),");
+  if (hasSpacing) {
+    lines.push("        padding: const EdgeInsets.symmetric(horizontal: DSSpacing.sm),");
+  }
+  lines.push("      ),");
+  lines.push("");
+
+  // SnackBar
+  lines.push("      // SnackBar");
+  lines.push("      snackBarTheme: SnackBarThemeData(");
+  lines.push("        backgroundColor: scheme.inverseSurface,");
+  lines.push("        actionTextColor: scheme.inversePrimary,");
+  if (hasElevation) {
+    lines.push("        elevation: DSElevation.lg,");
+  }
+  if (hasRadius) {
+    lines.push("        shape: RoundedRectangleBorder(borderRadius: DSRadius.mdAll),");
+  }
+  lines.push("        behavior: SnackBarBehavior.floating,");
+  if (hasSpacing) {
+    lines.push("        insetPadding: const EdgeInsets.symmetric(horizontal: DSSpacing.base, vertical: DSSpacing.sm),");
+  }
+  lines.push("      ),");
+  lines.push("");
+
+  // Tooltip
+  lines.push("      // Tooltip");
+  lines.push("      tooltipTheme: TooltipThemeData(");
+  if (hasRadius) {
+    lines.push("        decoration: BoxDecoration(color: scheme.inverseSurface, borderRadius: DSRadius.mdAll),");
+  }
+  if (hasSpacing) {
+    lines.push("        padding: const EdgeInsets.symmetric(horizontal: DSSpacing.sm, vertical: DSSpacing.xs),");
+  }
+  lines.push("      ),");
+  lines.push("");
+
+  // PopupMenu
+  lines.push("      // PopupMenu");
+  lines.push("      popupMenuTheme: PopupMenuThemeData(");
+  if (hasElevation) {
+    lines.push("        elevation: DSElevation.xxl,");
+  }
+  lines.push("        color: scheme.surfaceContainer,");
+  if (hasRadius) {
+    lines.push("        shape: RoundedRectangleBorder(borderRadius: DSRadius.mdAll),");
+  }
+  lines.push("        surfaceTintColor: scheme.surfaceTint,");
+  lines.push("      ),");
+  lines.push("");
+
+  // NavigationBar
+  lines.push("      // NavigationBar");
+  lines.push("      navigationBarTheme: NavigationBarThemeData(");
+  if (hasElevation) {
+    lines.push("        elevation: DSElevation.md,");
+  }
+  lines.push("        backgroundColor: scheme.surfaceContainer,");
+  lines.push("        surfaceTintColor: scheme.surfaceTint,");
+  lines.push("        indicatorColor: scheme.secondaryContainer,");
+  if (hasRadius) {
+    lines.push("        indicatorShape: RoundedRectangleBorder(borderRadius: DSRadius.fullAll),");
+  }
+  lines.push("        height: 80,");
+  lines.push("        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,");
+  lines.push("      ),");
+  lines.push("");
+
+  // TabBar
+  lines.push("      // TabBar");
+  lines.push("      tabBarTheme: TabBarThemeData(");
+  lines.push("        labelColor: scheme.primary,");
+  lines.push("        unselectedLabelColor: scheme.onSurfaceVariant,");
+  lines.push("        indicatorColor: scheme.primary,");
+  lines.push("        indicatorSize: TabBarIndicatorSize.label,");
+  lines.push(`        labelStyle: ${fontStyleExprNoColor(provider, uiFontFamily, { size: 14, weight: 600 })},`);
+  lines.push(`        unselectedLabelStyle: ${fontStyleExprNoColor(provider, uiFontFamily, { size: 14, weight: 400 })},`);
+  lines.push("      ),");
+  lines.push("");
+
+  // Divider
+  lines.push("      // Divider");
+  lines.push("      dividerTheme: DividerThemeData(color: scheme.outlineVariant, thickness: 1, space: 0),");
+  lines.push("");
+
+  // Progress
+  lines.push("      // Progress");
+  lines.push("      progressIndicatorTheme: ProgressIndicatorThemeData(");
+  lines.push("        color: scheme.primary,");
+  lines.push("        linearTrackColor: scheme.surfaceContainerHighest,");
+  lines.push("        circularTrackColor: scheme.surfaceContainerHighest,");
+  lines.push("      ),");
+  lines.push("");
+
+  // Switch
+  lines.push("      // Switch");
+  lines.push("      switchTheme: SwitchThemeData(");
+  lines.push("        thumbColor: WidgetStateProperty.resolveWith((states) {");
+  lines.push("          if (states.contains(WidgetState.selected)) return scheme.onPrimary;");
+  lines.push("          return scheme.outline;");
+  lines.push("        }),");
+  lines.push("        trackColor: WidgetStateProperty.resolveWith((states) {");
+  lines.push("          if (states.contains(WidgetState.selected)) return scheme.primary;");
+  lines.push("          return scheme.surfaceContainerHighest;");
+  lines.push("        }),");
+  lines.push("        trackOutlineColor: WidgetStateProperty.resolveWith((states) {");
+  lines.push("          if (states.contains(WidgetState.selected)) return Colors.transparent;");
+  lines.push("          return scheme.outline;");
+  lines.push("        }),");
+  lines.push("      ),");
+  lines.push("");
+
+  // Checkbox
+  lines.push("      // Checkbox");
+  lines.push("      checkboxTheme: CheckboxThemeData(");
+  lines.push("        fillColor: WidgetStateProperty.resolveWith((states) {");
+  lines.push("          if (states.contains(WidgetState.selected)) return scheme.primary;");
+  lines.push("          return Colors.transparent;");
+  lines.push("        }),");
+  lines.push("        checkColor: WidgetStateProperty.all(scheme.onPrimary),");
+  lines.push("        side: BorderSide(color: scheme.onSurfaceVariant, width: 2),");
+  if (hasRadius) {
+    lines.push("        shape: RoundedRectangleBorder(borderRadius: DSRadius.smAll),");
+  }
+  lines.push("      ),");
+  lines.push("");
+
+  // Radio
+  lines.push("      // Radio");
+  lines.push("      radioTheme: RadioThemeData(");
+  lines.push("        fillColor: WidgetStateProperty.resolveWith((states) {");
+  lines.push("          if (states.contains(WidgetState.selected)) return scheme.primary;");
+  lines.push("          return scheme.onSurfaceVariant;");
+  lines.push("        }),");
+  lines.push("      ),");
+  lines.push("");
+
+  // Slider
+  lines.push("      // Slider");
+  lines.push("      sliderTheme: SliderThemeData(");
+  lines.push("        activeTrackColor: scheme.primary,");
+  lines.push("        inactiveTrackColor: scheme.surfaceContainerHighest,");
+  lines.push("        thumbColor: scheme.primary,");
+  lines.push("        overlayColor: scheme.primary.withValues(alpha: 0.12),");
+  lines.push("      ),");
+  lines.push("");
+
+  // ListTile
+  lines.push("      // ListTile");
+  lines.push("      listTileTheme: ListTileThemeData(");
+  if (hasSpacing) {
+    lines.push("        contentPadding: const EdgeInsets.symmetric(horizontal: DSSpacing.base),");
+    lines.push("        minVerticalPadding: DSSpacing.md,");
+  }
+  lines.push("        iconColor: scheme.onSurfaceVariant,");
+  lines.push("        textColor: scheme.onSurface,");
+  if (hasRadius) {
+    lines.push("        shape: RoundedRectangleBorder(borderRadius: DSRadius.mdAll),");
+  }
+  lines.push("      ),");
+  lines.push("");
+
+  // Icon
+  if (hasIconSize) {
+    lines.push("      // Icon");
+    lines.push("      iconTheme: IconThemeData(size: DSIconSize.md),");
+    lines.push("");
+  }
+
+  // Scrollbar
+  lines.push("      // Scrollbar");
+  lines.push("      scrollbarTheme: ScrollbarThemeData(");
+  lines.push("        thumbColor: WidgetStateProperty.all(scheme.onSurface.withValues(alpha: 0.3)),");
+  if (hasRadius) {
+    lines.push("        radius: const Radius.circular(DSRadius.full),");
+  }
+  lines.push("        thickness: WidgetStateProperty.all(4),");
+  lines.push("      ),");
+  lines.push("");
+
+  // Badge
+  lines.push("      // Badge");
+  lines.push("      badgeTheme: BadgeThemeData(");
+  lines.push("        backgroundColor: scheme.error,");
+  lines.push("        textColor: scheme.onError,");
+  lines.push("      ),");
+  lines.push("");
+
+  // SearchBar
+  lines.push("      // SearchBar");
+  lines.push("      searchBarTheme: SearchBarThemeData(");
+  if (hasElevation) {
+    lines.push("        elevation: WidgetStateProperty.all(DSElevation.sm),");
+  }
+  lines.push("        backgroundColor: WidgetStateProperty.all(scheme.surfaceContainerHigh),");
+  lines.push("        surfaceTintColor: WidgetStateProperty.all(scheme.surfaceTint),");
+  if (hasRadius) {
+    lines.push("        shape: WidgetStateProperty.all(RoundedRectangleBorder(borderRadius: DSRadius.fullAll)),");
+  }
+  if (hasSpacing) {
+    lines.push("        padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: DSSpacing.base)),");
+  }
+  lines.push("      ),");
+  lines.push("");
+
+  // BottomNavigationBar
+  lines.push("      // BottomNavigationBar");
+  lines.push("      bottomNavigationBarTheme: BottomNavigationBarThemeData(");
+  lines.push("        backgroundColor: scheme.surfaceContainer,");
+  lines.push("        selectedItemColor: scheme.primary,");
+  lines.push("        unselectedItemColor: scheme.onSurfaceVariant,");
+  if (hasElevation) {
+    lines.push("        elevation: DSElevation.md,");
+  }
+  lines.push("        type: BottomNavigationBarType.fixed,");
+  lines.push("      ),");
+
   lines.push("    );");
   lines.push("  }");
   lines.push("");
@@ -294,21 +760,9 @@ export function generateTheme(tokens: ValidatedTokens, packageName: string): str
     for (const [key, entry] of Object.entries(typo.scale)) {
       const familyName = typo.fontFamily[entry.family] ?? entry.family;
       const weightValue = typo.fontWeight[entry.weight] ?? 400;
-      const dartWeight = `FontWeight.w${weightValue}`;
-
-      let expr: string;
-      if (provider === "google_fonts") {
-        const methodName = familyName
-          .split(" ")
-          .map((w, i) => (i === 0 ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1)))
-          .join("");
-        expr = `GoogleFonts.${methodName}(\n        fontSize: ${entry.size},\n        fontWeight: ${dartWeight},\n        color: scheme.onSurface,\n      )`;
-      } else if (provider === "asset") {
-        expr = `TextStyle(\n        fontFamily: '${familyName}',\n        fontSize: ${entry.size},\n        fontWeight: ${dartWeight},\n        color: scheme.onSurface,\n      )`;
-      } else {
-        expr = `TextStyle(\n        fontSize: ${entry.size},\n        fontWeight: ${dartWeight},\n        color: scheme.onSurface,\n      )`;
-      }
-
+      // bodySmall and labelSmall use onSurfaceVariant in M3
+      const color = key === "bodySmall" || key === "labelSmall" ? "scheme.onSurfaceVariant" : "scheme.onSurface";
+      const expr = fontStyleExpr(provider, familyName, { size: entry.size, weight: weightValue, color });
       lines.push(`      ${key}: ${expr},`);
     }
   }
