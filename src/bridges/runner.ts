@@ -207,9 +207,10 @@ async function executeBridge(
   root: string,
   pm: string,
   verbose: boolean,
+  dryRun: boolean = false,
 ): Promise<void> {
   const bridge = resolved.bridge;
-  const context = registry.createContext(graph, root, pm, { verbose });
+  const context = registry.createContext(graph, root, pm, { verbose, dryRun });
 
   // Escape hatch: explicit run script
   if (bridge.run && resolved.sourcePlugin) {
@@ -358,6 +359,7 @@ export async function executeBridgeGroup(
   root: string,
   pm: string,
   verbose: boolean,
+  dryRun: boolean = false,
 ): Promise<void> {
   const first = group[0];
   if (!first) {
@@ -366,7 +368,7 @@ export async function executeBridgeGroup(
 
   // Single bridge — no grouping needed
   if (group.length === 1) {
-    await executeBridge(first, registry, graph, root, pm, verbose);
+    await executeBridge(first, registry, graph, root, pm, verbose, dryRun);
     return;
   }
 
@@ -386,7 +388,7 @@ export async function executeBridgeGroup(
     mergedTargets.push(...bridge.targets);
   }
 
-  const context = registry.createContext(graph, root, pm, { verbose });
+  const context = registry.createContext(graph, root, pm, { verbose, dryRun });
 
   if (verbose) {
     const targetNames = mergedTargets.map((t) => t.path).join(", ");

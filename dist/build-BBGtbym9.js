@@ -4,7 +4,7 @@ import { t as loadConfig } from "./loader-CYxgXRd0.js";
 import { t as buildWorkspaceGraph } from "./workspace-22OBPV16.js";
 import { n as formatDiagnostics, t as DiagnosticCollector } from "./diagnostic-ua3edMsw.js";
 import { t as groupByEcosystem } from "./group-DMsvuP93.js";
-import { n as loadPlugins, r as STANDARD_ACTIONS, t as PluginRegistry } from "./registry-YSQZfaPo.js";
+import { n as loadPlugins, r as STANDARD_ACTIONS, t as PluginRegistry } from "./registry-CdAbh4cA.js";
 import { t as detectPackageManager } from "./pm-detect-BtRYHQXQ.js";
 //#region src/commands/build.ts
 const SKIP = `${DIM}·${RESET}`;
@@ -85,4 +85,4 @@ async function runBuild(parsers, options = {}) {
 //#endregion
 export { runBuild };
 
-//# sourceMappingURL=build-CDtiAOLH.js.map
+//# sourceMappingURL=build-BBGtbym9.js.map

@@ -95,6 +95,7 @@ export class PluginRegistry {
     packageManager: string,
     options?: {
       readonly verbose?: boolean;
+      readonly dryRun?: boolean;
       readonly lintConfig?: LintConfig;
       readonly formatConfig?: FormatConfig;
     },
@@ -104,6 +105,7 @@ export class PluginRegistry {
       root,
       packageManager,
       verbose: options?.verbose,
+      dryRun: options?.dryRun,
       lintTypescript: options?.lintConfig?.typescript,
       lintDart: options?.lintConfig?.dart,
       formatTypescript: options?.formatConfig?.typescript,

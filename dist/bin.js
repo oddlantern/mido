@@ -179,6 +179,7 @@ CI / automation:
 
 Common flags:
   --quiet              Only show failures
+  --dry-run            Preview changes without writing to disk
   --package <path>     Target a specific package
   --ecosystem <name>   Target a specific ecosystem (lint, fmt, test)
   --json               Machine-readable output (affected, outdated, why)
@@ -229,7 +230,7 @@ async function main() {
 		process.exit(exitCode);
 	}
 	if (command === "init") {
-		const { runInit } = await import("./init-CEAqWauT.js");
+		const { runInit } = await import("./init-CQx470wM.js");
 		const exitCode = await runInit(process.cwd(), parsers);
 		process.exit(exitCode);
 	}
@@ -250,13 +251,14 @@ async function main() {
 	}
 	if (command === "dev") {
 		const verbose = args.includes("--verbose");
-		const { runDev } = await import("./dev-D9FJ058f.js");
+		const { runDev } = await import("./dev-B1eB6s0a.js");
 		const exitCode = await runDev(parsers, { verbose });
 		process.exit(exitCode);
 	}
 	if (command === "install") {
-		const { runInstall } = await import("./install-Dmkn7G7u.js");
-		const exitCode = await runInstall(process.cwd());
+		const dryRun = args.includes("--dry-run");
+		const { runInstall } = await import("./install-1BwGj3M6.js");
+		const exitCode = await runInstall(process.cwd(), { dryRun }, void 0);
 		process.exit(exitCode);
 	}
 	if (command === "lint") {
@@ -264,7 +266,7 @@ async function main() {
 		const quiet = args.includes("--quiet");
 		const pkg = getFlagValue(args, "--package");
 		const ecosystem = getFlagValue(args, "--ecosystem");
-		const { runLint } = await import("./lint-CWAc3RIL.js");
+		const { runLint } = await import("./lint-BAk-7ZHC.js");
 		const exitCode = await runLint(parsers, {
 			fix,
 			quiet,
@@ -278,7 +280,7 @@ async function main() {
 		const quiet = args.includes("--quiet");
 		const pkg = getFlagValue(args, "--package");
 		const ecosystem = getFlagValue(args, "--ecosystem");
-		const { runFmt } = await import("./fmt-Ckhrfxs1.js");
+		const { runFmt } = await import("./fmt-CChJ8i2k.js");
 		const exitCode = await runFmt(parsers, {
 			check,
 			quiet,
@@ -291,11 +293,13 @@ async function main() {
 		const quiet = args.includes("--quiet");
 		const verbose = args.includes("--verbose");
 		const force = args.includes("--force");
-		const { runGenerate } = await import("./generate-BSpilDW8.js");
+		const dryRun = args.includes("--dry-run");
+		const { runGenerate } = await import("./generate-DKUgMT68.js");
 		const exitCode = await runGenerate(parsers, {
 			quiet,
 			verbose,
-			force
+			force,
+			dryRun
 		});
 		process.exit(exitCode);
 	}
@@ -316,10 +320,12 @@ async function main() {
 	if (command === "upgrade") {
 		const all = args.includes("--all");
 		const verify = args.includes("--verify");
+		const dryRun = args.includes("--dry-run");
 		const { runUpgrade } = await import("./upgrade-Bz4TIgUA.js");
 		const exitCode = await runUpgrade(parsers, {
 			all,
-			verify
+			verify,
+			dryRun
 		});
 		process.exit(exitCode);
 	}
@@ -327,7 +333,7 @@ async function main() {
 		const quiet = args.includes("--quiet");
 		const pkg = getFlagValue(args, "--package");
 		const ecosystem = getFlagValue(args, "--ecosystem");
-		const { runTest } = await import("./test-D4IC8mm4.js");
+		const { runTest } = await import("./test-Dm8mIInj.js");
 		const exitCode = await runTest(parsers, {
 			quiet,
 			package: pkg,
@@ -339,7 +345,7 @@ async function main() {
 		const quiet = args.includes("--quiet");
 		const all = args.includes("--all");
 		const pkg = getFlagValue(args, "--package");
-		const { runBuild } = await import("./build-CDtiAOLH.js");
+		const { runBuild } = await import("./build-BBGtbym9.js");
 		const exitCode = await runBuild(parsers, {
 			quiet,
 			all,
@@ -349,12 +355,12 @@ async function main() {
 	}
 	if (command === "ci") {
 		const verbose = args.includes("--verbose");
-		const { runCi } = await import("./ci-CEW9izda.js");
+		const { runCi } = await import("./ci-D8IF_SZZ.js");
 		const exitCode = await runCi(parsers, { verbose });
 		process.exit(exitCode);
 	}
 	if (command === "pre-commit") {
-		const { runPreCommit } = await import("./pre-commit-BF1mb63I.js");
+		const { runPreCommit } = await import("./pre-commit-BbfQS7ET.js");
 		const exitCode = await runPreCommit(parsers);
 		process.exit(exitCode);
 	}
@@ -386,8 +392,12 @@ async function main() {
 			process.exit(1);
 		}
 		const includePlatformIds = args.includes("--include-platform-ids");
-		const { runRename } = await import("./rename-Cdj2OHfa.js");
-		const exitCode = await runRename(parsers, newName, { includePlatformIds });
+		const dryRun = args.includes("--dry-run");
+		const { runRename } = await import("./rename-BARzJsg3.js");
+		const exitCode = await runRename(parsers, newName, {
+			includePlatformIds,
+			dryRun
+		});
 		process.exit(exitCode);
 	}
 	if (command === "version" || command === "--v") {
