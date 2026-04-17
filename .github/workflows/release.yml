@@ -92,4 +92,8 @@ jobs:
         run: bun test
 
       - name: Publish to npm
-        run: npm publish --provenance --access public
+        # --ignore-scripts skips prepublishOnly. CI already built, tested,
+        # and ran lint:publish on this commit before the release PR merged;
+        # re-running those steps inside `npm publish` duplicates work and
+        # exposes the publish to flaky test runs for no added safety.
+        run: npm publish --provenance --access public --ignore-scripts
