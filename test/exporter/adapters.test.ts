@@ -10,6 +10,7 @@ import { nestjsAdapter } from '../../src/plugins/builtin/domain/openapi/adapters
 import { fastapiAdapter } from '../../src/plugins/builtin/domain/openapi/adapters/fastapi.js';
 import { axumAdapter } from '../../src/plugins/builtin/domain/openapi/adapters/axum.js';
 import { humaAdapter } from '../../src/plugins/builtin/domain/openapi/adapters/huma.js';
+import { symfonyAdapter } from '../../src/plugins/builtin/domain/openapi/adapters/symfony.js';
 
 describe('framework adapter detection', () => {
   test('elysia adapter detects elysia + @elysiajs/openapi', () => {
@@ -159,6 +160,25 @@ describe('detectAdapter', () => {
       'github.com/go-chi/chi/v5': 'v5.0.0',
     };
     expect(humaAdapter.detect(deps)).toBe(false);
+  });
+
+  test('symfony adapter detects symfony + nelmio from composer deps', () => {
+    const deps = {
+      'symfony/framework-bundle': '^7.0',
+      'nelmio/api-doc-bundle': '^4.0',
+    };
+    expect(symfonyAdapter.detect(deps)).toBe(true);
+    const adapter = detectAdapter(deps);
+    expect(adapter?.name).toBe('symfony');
+  });
+
+  test('symfony adapter rejects composer without nelmio (no openapi capability)', () => {
+    const deps = {
+      'symfony/framework-bundle': '^7.0',
+      // no nelmio → framework matches but detectAdapter shouldn't
+    };
+    expect(symfonyAdapter.detect(deps)).toBe(true);
+    expect(detectAdapter(deps)).toBeNull();
   });
 
 });

@@ -8,6 +8,7 @@ import { koaAdapter } from "@/plugins/builtin/domain/openapi/adapters/koa";
 import { fastapiAdapter } from "@/plugins/builtin/domain/openapi/adapters/fastapi";
 import { axumAdapter } from "@/plugins/builtin/domain/openapi/adapters/axum";
 import { humaAdapter } from "@/plugins/builtin/domain/openapi/adapters/huma";
+import { symfonyAdapter } from "@/plugins/builtin/domain/openapi/adapters/symfony";
 
 export type { FrameworkAdapter } from "@/plugins/builtin/domain/openapi/adapters/types";
 
@@ -26,6 +27,7 @@ const ADAPTERS: readonly FrameworkAdapter[] = [
   fastapiAdapter,
   axumAdapter,
   humaAdapter,
+  symfonyAdapter,
 ];
 
 /**

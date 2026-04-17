@@ -386,6 +386,27 @@ async function readAllDeps(pkgPath: string, root: string): Promise<Record<string
     const content = await readFile(goModPath, "utf-8");
     return extractGoModDeps(content);
   } catch {
+    // Fall through to composer.json
+  }
+
+  // Try composer.json (PHP). Structure: { require: {...}, require-dev: {...} }.
+  try {
+    const composerPath = join(root, pkgPath, "composer.json");
+    const content = await readFile(composerPath, "utf-8");
+    const parsed: unknown = JSON.parse(content);
+    if (!isRecord(parsed)) return {};
+    const deps: Record<string, string> = {};
+    for (const field of ["require", "require-dev"]) {
+      const block = parsed[field];
+      if (!isRecord(block)) continue;
+      for (const [name, version] of Object.entries(block)) {
+        if (typeof version === "string") {
+          deps[name] = version;
+        }
+      }
+    }
+    return deps;
+  } catch {
     return {};
   }
 }
