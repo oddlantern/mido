@@ -1,12 +1,28 @@
+<pre align="center">
+ ░███    ░██ ░████████░██    ░██ ░████████░███████   ░██████  ░███    ░██
+ ░████   ░██ ░██      ░██    ░██    ░██   ░██   ░██ ░██   ░██ ░████   ░██
+ ░██░██  ░██ ░██      ░██    ░██    ░██   ░██    ░██░██    ░██░██░██  ░██
+ ░██ ░██ ░██ ░██████  ░██    ░██    ░██   ░███████  ░██    ░██░██ ░██ ░██
+ ░██  ░██░██ ░██      ░██    ░██    ░██   ░██   ░██ ░██    ░██░██  ░██░██
+ ░██   ░████ ░██       ░██  ░██     ░██   ░██    ░██░██   ░██ ░██   ░████
+ ░██    ░███ ░████████  ░████       ░██   ░██    ░██ ░██████  ░██    ░███
+
+                       dense workspace synchronization
+</pre>
+
 # neutron
 
 Cross-ecosystem monorepo workspace tool. One config, every language, all bridges generated.
 
-**neutron** scans your monorepo, builds a unified dependency graph across TypeScript and Dart, orchestrates code generation between ecosystems, and enforces consistency — versions, formatting, linting, commits, and environment parity.
+**neutron** scans your monorepo, builds a unified dependency graph across **TypeScript, Dart, Python, Rust, Go, and PHP**, orchestrates code generation between ecosystems, and enforces consistency — versions, formatting, linting, commits, and environment parity.
+
+The bridge pipeline — OpenAPI, design tokens, JSON schemas, assets — is neutron's distinguishing feature. One source file produces typed consumers in every ecosystem you care about, regenerated automatically on change.
+
+> **Ecosystem status:** TypeScript and Dart are stable. Python, Rust, Go, and PHP are shipping but marked experimental — framework detection and codegen parity are still being filled in. `neutron doctor` surfaces which of your ecosystems are experimental.
 
 ## The problem
 
-TypeScript monorepos have syncpack. Dart monorepos have melos. Neither sees the other. If your repo contains both — plus generated API clients and design tokens bridging them — version mismatches, stale artifacts, and env drift go undetected until something breaks at runtime.
+Every ecosystem has its own workspace tool. TypeScript has syncpack and Turborepo. Dart has melos. Python has uv and poetry workspaces. None of them see each other. When your repo mixes two or more — plus generated API clients, design tokens, and shared schemas bridging them — version mismatches, stale artifacts, and env drift go undetected until something breaks at runtime.
 
 ## What neutron replaces
 
@@ -225,14 +241,18 @@ The `generated/` directories are gitignored — `neutron generate` runs automati
 
 neutron auto-detects your server framework from dependencies, spawns it to export the spec, and shuts it down. Supported frameworks:
 
-| Framework | Spec endpoint |
-|-----------|--------------|
-| Elysia | `/openapi/json` |
-| Hono | `/openapi` |
-| Express | `/api-docs` |
-| Fastify | `/documentation/json` |
-| Koa | `/swagger.json` |
-| NestJS | `/api-docs-json` |
+| Ecosystem | Framework | Spec endpoint |
+|-----------|-----------|---------------|
+| TypeScript | Elysia | `/openapi/json` |
+| TypeScript | Hono | `/openapi` |
+| TypeScript | Express | `/api-docs` |
+| TypeScript | Fastify | `/documentation/json` |
+| TypeScript | Koa | `/swagger.json` |
+| TypeScript | NestJS | `/api-docs-json` |
+| Python | FastAPI | `/openapi.json` |
+| Rust | Axum + utoipa | `/api-docs/openapi.json` |
+| Go | Huma | `/openapi.json` |
+| PHP | Symfony + NelmioApiDocBundle | `/api/doc.json` |
 
 Override with `entryFile` and `specPath` in the bridge config for edge cases.
 
@@ -252,10 +272,35 @@ Extensions support typed fields: themed colors (`{ light, dark }` hex), static c
 
 ### Ecosystem plugins
 
-- **typescript** — oxlint, oxfmt (bundled), openapi-typescript, CSS/TS design token codegen, typed asset paths
-- **dart** — dart analyze, dart format, swagger_parser, Flutter theme codegen (M3 ColorScheme, ThemeExtensions), typed asset wrappers
+Stable:
 
-Oxlint plugins are auto-enabled based on your dependencies: always `typescript`, `unicorn`, `oxc`, `import`; conditionally `react`, `jsx-a11y`, `react-perf` (if React/Preact), `jest`, `vitest`, `nextjs`.
+- **typescript** — oxlint, oxfmt (bundled), openapi-typescript, CSS/TS design token codegen, typed asset paths
+- **dart** — `dart analyze`, `dart format`, swagger_parser, Flutter theme codegen (M3 ColorScheme, ThemeExtensions), typed asset wrappers
+
+Experimental:
+
+- **python** — ruff (resolved from `.venv/bin/` → workspace `.venv/bin/` → PATH), FastAPI framework detection, openapi-python-client full-client codegen, pydantic design-token dataclasses, JSON schema dataclasses
+- **rust** — `cargo` (clippy/fmt/test/build assumed present), axum + utoipa detection, types-only OpenAPI models, `pub struct` + `LIGHT`/`DARK` const design tokens, schema structs
+- **go** — `go build/vet/test/fmt`, golangci-lint when available, huma framework detection, types-only OpenAPI models, `type Color struct` + themed vars design tokens, schema structs
+- **php** — `phpstan`/`phpcs`/`php-cs-fixer`/`pint` via vendor/bin, Symfony + NelmioApiDocBundle detection, types-only OpenAPI models with PSR-4 autoload, `final class` constants for design tokens, schema classes
+
+Oxlint plugins (TypeScript) are auto-enabled based on your dependencies: always `typescript`, `unicorn`, `oxc`, `import`; conditionally `react`, `jsx-a11y`, `react-perf` (if React/Preact), `jest`, `vitest`, `nextjs`.
+
+## External plugins
+
+Neutron supports third-party plugins loaded from npm. Declare them in `neutron.yml`:
+
+```yaml
+plugins:
+  - neutron-plugin-graphql
+  - "@acme/neutron-plugin-internal"
+```
+
+On every command, neutron resolves each from the workspace's `node_modules`, validates the export shape, and merges them with the built-ins. External plugins can introduce new ecosystems (languages), new domains (artifact formats), or override built-ins on name collision.
+
+Plugin authoring guide: [`PLUGIN_AUTHORING.md`](PLUGIN_AUTHORING.md).
+
+Plugin types are stable under the usual pre-1.0 rules (breaking changes allowed in minors). At 1.0, the plugin API freezes — breaking changes require a major bump after that.
 
 ## Dependency management
 
@@ -332,18 +377,11 @@ Lint and format run packages within the same ecosystem in parallel. Build runs s
 
 Set a hook to `false` to disable it. neutron detects conflicts with existing hooks and warns before overwriting.
 
-## Adding ecosystem support
+## Extending neutron
 
-neutron is built around a parser plugin boundary. Adding a new ecosystem = one file implementing `ManifestParser`:
+External plugins are the primary extension path — they let you add an ecosystem (language) or a domain (artifact format) without forking neutron. See [`PLUGIN_AUTHORING.md`](PLUGIN_AUTHORING.md).
 
-```typescript
-interface ManifestParser {
-  manifestName: string;
-  parse(manifestPath: string): Promise<ParsedManifest>;
-}
-```
-
-Currently supported: `package.json` (npm/yarn/pnpm/bun) and `pubspec.yaml` (Dart/Flutter).
+Supported manifests (built-in parsers): `package.json` (npm/yarn/pnpm/bun), `pubspec.yaml` (Dart/Flutter), `pyproject.toml` (Python), `Cargo.toml` (Rust), `go.mod` (Go), `composer.json` (PHP).
 
 ## License
 
