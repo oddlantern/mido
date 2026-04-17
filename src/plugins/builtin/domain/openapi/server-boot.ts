@@ -11,6 +11,13 @@ import { isRecord, getScripts } from "@/plugins/builtin/shared/exec";
 /** Default timeout waiting for server to accept connections (ms) */
 export const DEFAULT_STARTUP_TIMEOUT = 15_000;
 
+/**
+ * Startup timeout for cargo-run-based servers. First-run compile+link
+ * for an axum app is routinely 30-60s; incremental builds are far
+ * faster, but the first export from a fresh clone needs the headroom.
+ */
+export const RUST_STARTUP_TIMEOUT = 120_000;
+
 /** How often to poll the server during startup (ms) */
 const POLL_INTERVAL = 500;
 
@@ -41,7 +48,7 @@ export async function findFreePort(): Promise<number> {
   });
 }
 
-/** Well-known entry files checked in order. TS patterns first, Python last. */
+/** Well-known entry files checked in order. TS, Python, then Rust. */
 const ENTRY_CANDIDATES: readonly string[] = [
   "src/index.ts",
   "src/main.ts",
@@ -53,6 +60,10 @@ const ENTRY_CANDIDATES: readonly string[] = [
   "src/app.py",
   "main.py",
   "app.py",
+  "src/main.rs",
+  "src/bin/main.rs",
+  "src/bin/server.rs",
+  "src/bin/api.rs",
 ];
 
 /**
@@ -111,6 +122,28 @@ export async function detectEntryFile(packageDir: string): Promise<string | null
   }
 
   return null;
+}
+
+/**
+ * Convert a Rust entry file path to `cargo run` arguments.
+ *
+ * "src/main.rs"            → []                      (default binary)
+ * "src/bin/server.rs"      → ["--bin", "server"]     (named binary)
+ * "src/bin/api.rs"         → ["--bin", "api"]
+ *
+ * Always runs in release mode — axum + utoipa in debug mode is
+ * noticeably slower to start, which hurts the spec-export cold path
+ * more than the extra compile time does.
+ */
+export function rustEntryToCargoArgs(entryFile: string): readonly string[] {
+  const args = ["run", "--release"];
+  // A file under src/bin/<name>.rs is a named binary; everything else
+  // (src/main.rs or a user-declared default) runs without --bin.
+  const binMatch = entryFile.match(/^src\/bin\/([^/]+)\.rs$/);
+  if (binMatch?.[1]) {
+    args.push("--bin", binMatch[1]);
+  }
+  return args;
 }
 
 /**
@@ -321,8 +354,15 @@ export interface SpawnedServer {
 
 /**
  * Decide how to spawn the server based on the entry file's ecosystem.
- * Python entry files (`.py`) spawn via uvicorn from the venv chain;
- * everything else goes through node/bun + tsx.
+ *
+ * - Python entry files (`.py`) spawn via uvicorn from the venv chain.
+ * - Rust entry files (`.rs`) spawn via `cargo run --release`.
+ * - Everything else (TS/JS) goes through node/bun + tsx.
+ *
+ * The Rust path expects the server binary to read its port from the
+ * PORT env var — spawnServer already propagates PORT. Servers that
+ * hard-code a port will fail regardless; users can override via the
+ * bridge's specPath once the server responds on its chosen port.
  */
 function buildSpawnCommand(
   packageDir: string,
@@ -338,6 +378,14 @@ function buildSpawnCommand(
     return {
       runner: uvicorn,
       args: [`${module}:${app}`, "--port", String(port)],
+    };
+  }
+
+  // Rust (axum via cargo run).
+  if (entryFile.endsWith(".rs")) {
+    return {
+      runner: "cargo",
+      args: rustEntryToCargoArgs(entryFile),
     };
   }
 
