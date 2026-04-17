@@ -9,6 +9,7 @@ import type { ExecuteResult } from "@/plugins/types";
 import { isRecord, readPackageJson } from "@/plugins/builtin/shared/exec";
 import {
   DEFAULT_STARTUP_TIMEOUT,
+  RUST_STARTUP_TIMEOUT,
   detectEntryFile,
   fetchSpec,
   findFreePort,
@@ -68,7 +69,9 @@ export async function exportSpec(options: ExportOptions): Promise<ExecuteResult>
     pm,
     adapter,
     outputPath,
-    startupTimeout = DEFAULT_STARTUP_TIMEOUT,
+    // Rust cargo-run cold starts can take up to a minute; scale the
+    // default timeout per ecosystem so TS/Python don't pay the tax.
+    startupTimeout = adapter.ecosystem === "rust" ? RUST_STARTUP_TIMEOUT : DEFAULT_STARTUP_TIMEOUT,
     verbose = false,
   } = options;
   const start = performance.now();
@@ -246,8 +249,33 @@ function extractPyProjectDeps(manifest: Record<string, unknown>): Record<string,
 }
 
 /**
+ * Extract a flat { name → version } dep map from a Cargo.toml.
+ * Combines [dependencies], [dev-dependencies], and [build-dependencies].
+ * Each value may be a version string or a table with a `version` key.
+ */
+function extractCargoDeps(manifest: Record<string, unknown>): Record<string, string> {
+  const deps: Record<string, string> = {};
+
+  for (const field of ["dependencies", "dev-dependencies", "build-dependencies"]) {
+    const raw = manifest[field];
+    if (!isRecord(raw)) continue;
+    for (const [name, value] of Object.entries(raw)) {
+      if (typeof value === "string") {
+        deps[name] = value;
+      } else if (isRecord(value) && typeof value["version"] === "string") {
+        deps[name] = value["version"];
+      } else {
+        deps[name] = "*";
+      }
+    }
+  }
+
+  return deps;
+}
+
+/**
  * Read all dependencies from whichever manifest the package has. Tries
- * package.json first (TS ecosystem), then pyproject.toml (Python).
+ * package.json (TS), pyproject.toml (Python), then Cargo.toml (Rust).
  */
 async function readAllDeps(pkgPath: string, root: string): Promise<Record<string, string>> {
   // Try package.json
@@ -266,7 +294,7 @@ async function readAllDeps(pkgPath: string, root: string): Promise<Record<string
     }
     return allDeps;
   } catch {
-    // Fall through to pyproject
+    // Fall through to pyproject / Cargo
   }
 
   // Try pyproject.toml
@@ -275,6 +303,16 @@ async function readAllDeps(pkgPath: string, root: string): Promise<Record<string
     const content = await readFile(pyprojectPath, "utf-8");
     const parsed = parseToml(content) as Record<string, unknown>;
     return extractPyProjectDeps(parsed);
+  } catch {
+    // Fall through to Cargo
+  }
+
+  // Try Cargo.toml
+  try {
+    const cargoPath = join(root, pkgPath, "Cargo.toml");
+    const content = await readFile(cargoPath, "utf-8");
+    const parsed = parseToml(content) as Record<string, unknown>;
+    return extractCargoDeps(parsed);
   } catch {
     return {};
   }

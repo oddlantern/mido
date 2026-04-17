@@ -8,6 +8,7 @@ import { fastifyAdapter } from '../../src/plugins/builtin/domain/openapi/adapter
 import { koaAdapter } from '../../src/plugins/builtin/domain/openapi/adapters/koa.js';
 import { nestjsAdapter } from '../../src/plugins/builtin/domain/openapi/adapters/nestjs.js';
 import { fastapiAdapter } from '../../src/plugins/builtin/domain/openapi/adapters/fastapi.js';
+import { axumAdapter } from '../../src/plugins/builtin/domain/openapi/adapters/axum.js';
 
 describe('framework adapter detection', () => {
   test('elysia adapter detects elysia + @elysiajs/openapi', () => {
@@ -124,5 +125,34 @@ describe('detectAdapter', () => {
   test('fastapi adapter is flagged as the python ecosystem', () => {
     // server-boot branches on this to pick uvicorn over tsx/bun.
     expect(fastapiAdapter.ecosystem).toBe('python');
+  });
+
+  test('axum adapter detects axum + utoipa in Cargo deps', () => {
+    const deps = { axum: '0.7', utoipa: '5.0', tokio: '1.40' };
+    expect(axumAdapter.detect(deps)).toBe(true);
+
+    const adapter = detectAdapter(deps);
+    expect(adapter?.name).toBe('axum');
+  });
+
+  test('axum adapter rejects axum without utoipa (no OpenAPI capability)', () => {
+    const deps = { axum: '0.7', tokio: '1.40' };
+    expect(axumAdapter.detect(deps)).toBe(true);
+    // detect() matches on framework, but detectAdapter requires an
+    // openapi plugin (utoipa) too.
+    expect(detectAdapter(deps)).toBeNull();
+  });
+
+  test('axum adapter exposes utoipa default spec path + swagger-ui fallback', () => {
+    // utoipa apps typically mount /api-docs/openapi.json, but
+    // utoipa-swagger-ui also exposes the spec under its UI prefix.
+    expect(axumAdapter.defaultSpecPath).toBe('/api-docs/openapi.json');
+    expect(axumAdapter.fallbackSpecPaths).toContain('/swagger-ui/api-docs/openapi.json');
+  });
+
+  test('axum adapter is flagged as the rust ecosystem', () => {
+    // server-boot branches on this to pick cargo run over tsx/uvicorn,
+    // and exporter scales the startup timeout for cold cargo builds.
+    expect(axumAdapter.ecosystem).toBe('rust');
   });
 });

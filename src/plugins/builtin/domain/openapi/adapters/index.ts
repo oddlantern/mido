@@ -6,6 +6,7 @@ import { expressAdapter } from "@/plugins/builtin/domain/openapi/adapters/expres
 import { nestjsAdapter } from "@/plugins/builtin/domain/openapi/adapters/nestjs";
 import { koaAdapter } from "@/plugins/builtin/domain/openapi/adapters/koa";
 import { fastapiAdapter } from "@/plugins/builtin/domain/openapi/adapters/fastapi";
+import { axumAdapter } from "@/plugins/builtin/domain/openapi/adapters/axum";
 
 export type { FrameworkAdapter } from "@/plugins/builtin/domain/openapi/adapters/types";
 
@@ -22,6 +23,7 @@ const ADAPTERS: readonly FrameworkAdapter[] = [
   expressAdapter,
   koaAdapter,
   fastapiAdapter,
+  axumAdapter,
 ];
 
 /**
