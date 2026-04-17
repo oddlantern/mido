@@ -11,6 +11,7 @@ import type {
 import { STANDARD_ACTIONS } from "@/plugins/types";
 import { runCommand } from "@/process";
 import { executeSchemaGeneration } from "@/plugins/builtin/ecosystem/php/schema-codegen";
+import { executeTokenGeneration } from "@/plugins/builtin/ecosystem/php/token-codegen";
 
 const WATCH_PATTERNS: readonly string[] = [
   "src/**/*.php",
@@ -117,6 +118,9 @@ export const phpPlugin: EcosystemPlugin = {
         return runCommand(bin, [], cwd);
       }
 
+      case "generate-design-tokens-php":
+        return executeTokenGeneration(pkg, root, _context);
+
       case "generate-schema-php":
         return executeSchemaGeneration(pkg, root, _context);
 
@@ -138,7 +142,13 @@ export const phpPlugin: EcosystemPlugin = {
     if (domain === "openapi") {
       return {
         action: "generate-openapi-php",
-        description: "Generate PHP OpenAPI client",
+        description: "Generate PHP OpenAPI models (types only — write your own client)",
+      };
+    }
+    if (domain === "design-tokens") {
+      return {
+        action: "generate-design-tokens-php",
+        description: "Generate PHP design token constants",
       };
     }
     if (domain === "schema") {

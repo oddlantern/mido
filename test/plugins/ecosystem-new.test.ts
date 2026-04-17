@@ -163,7 +163,7 @@ describe("phpPlugin", () => {
     expect(patterns).toContain("composer.json");
   });
 
-  test("canHandleDomainArtifact: openapi + schema, design-tokens not yet wired", async () => {
+  test("canHandleDomainArtifact: openapi + schema + design-tokens supported", async () => {
     const pkg = makePkg("php", "pkg");
     expect((await phpPlugin.canHandleDomainArtifact?.("openapi", "x.json", pkg, "/tmp"))?.action).toBe(
       "generate-openapi-php",
@@ -171,7 +171,9 @@ describe("phpPlugin", () => {
     expect((await phpPlugin.canHandleDomainArtifact?.("schema", "x.schema.json", pkg, "/tmp"))?.action).toBe(
       "generate-schema-php",
     );
-    expect(await phpPlugin.canHandleDomainArtifact?.("design-tokens", "t.json", pkg, "/tmp")).toBeNull();
+    expect((await phpPlugin.canHandleDomainArtifact?.("design-tokens", "t.json", pkg, "/tmp"))?.action).toBe(
+      "generate-design-tokens-php",
+    );
   });
 });
 
