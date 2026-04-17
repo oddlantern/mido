@@ -55,7 +55,7 @@ export async function findFreePort(): Promise<number> {
   });
 }
 
-/** Well-known entry files checked in order. TS, Python, Rust, Go. */
+/** Well-known entry files checked in order. TS, Python, Rust, Go, PHP. */
 const ENTRY_CANDIDATES: readonly string[] = [
   "src/index.ts",
   "src/main.ts",
@@ -75,6 +75,9 @@ const ENTRY_CANDIDATES: readonly string[] = [
   "cmd/server/main.go",
   "cmd/api/main.go",
   "cmd/main/main.go",
+  "public/index.php",
+  "web/index.php",
+  "index.php",
 ];
 
 /**
@@ -411,10 +414,38 @@ function buildSpawnCommand(
     };
   }
 
+  // PHP (Symfony via php -S built-in dev server).
+  if (entryFile.endsWith(".php")) {
+    return phpSpawnCommand(entryFile, port);
+  }
+
   // TypeScript / JavaScript — fall through to the existing runner pair.
   return {
     runner: pm === "bun" ? "bun" : "npx",
     args: pm === "bun" ? ["run", entryFile] : ["tsx", entryFile],
+  };
+}
+
+/**
+ * PHP runs under the built-in dev server (`php -S`). Symfony and
+ * Laravel both use a front-controller pattern where the docroot is the
+ * directory containing index.php (public/ or web/), and requests are
+ * routed through that front controller.
+ *
+ * We pass -t <docroot> pointing at the entry file's parent so PHP's
+ * built-in router picks up the right docroot. If the entry is a bare
+ * index.php at the package root, docroot stays as the cwd.
+ */
+export function phpSpawnCommand(
+  entryFile: string,
+  port: number,
+): { readonly runner: string; readonly args: readonly string[] } {
+  // entryFile like "public/index.php" → docroot "public"
+  const lastSlash = entryFile.lastIndexOf("/");
+  const docroot = lastSlash >= 0 ? entryFile.slice(0, lastSlash) : ".";
+  return {
+    runner: "php",
+    args: ["-S", `127.0.0.1:${String(port)}`, "-t", docroot],
   };
 }
 

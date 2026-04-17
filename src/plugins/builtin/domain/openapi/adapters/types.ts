@@ -8,7 +8,7 @@ export interface FrameworkAdapter {
    * command selection (node vs uvicorn vs cargo run). Defaults to
    * typescript when omitted so existing adapters don't need to set it.
    */
-  readonly ecosystem?: "typescript" | "python" | "rust" | "go";
+  readonly ecosystem?: "typescript" | "python" | "rust" | "go" | "php";
   /** Detect this framework from package dependencies */
   detect(deps: Record<string, string>): boolean;
   /** The OpenAPI plugin package name(s) to check for */

@@ -10,6 +10,7 @@ import {
   fetchSpec,
   findFreePort,
   formatAttempts,
+  phpSpawnCommand,
   waitForServer,
 } from "@/plugins/builtin/domain/openapi/server-boot";
 
@@ -271,6 +272,37 @@ describe("waitForServer", () => {
     expect(elapsed).toBeGreaterThanOrEqual(1_000);
     expect(elapsed).toBeLessThan(5_000);
   }, 10_000);
+});
+
+describe("phpSpawnCommand", () => {
+  test("public/index.php → docroot is public/", () => {
+    const { runner, args } = phpSpawnCommand("public/index.php", 8000);
+    expect(runner).toBe("php");
+    expect(args).toEqual(["-S", "127.0.0.1:8000", "-t", "public"]);
+  });
+
+  test("web/index.php → docroot is web/", () => {
+    // Legacy Symfony layout uses web/ instead of public/.
+    const { args } = phpSpawnCommand("web/index.php", 9000);
+    expect(args).toEqual(["-S", "127.0.0.1:9000", "-t", "web"]);
+  });
+
+  test("bare index.php → docroot defaults to cwd (`.`)", () => {
+    const { args } = phpSpawnCommand("index.php", 7000);
+    expect(args).toEqual(["-S", "127.0.0.1:7000", "-t", "."]);
+  });
+
+  test("nested docroot is preserved as-is", () => {
+    const { args } = phpSpawnCommand("apps/api/public/index.php", 8080);
+    expect(args).toEqual(["-S", "127.0.0.1:8080", "-t", "apps/api/public"]);
+  });
+
+  test("port is formatted as a string", () => {
+    const { args } = phpSpawnCommand("public/index.php", 12345);
+    // Assert on the full host:port string; confirms no accidental
+    // number coercion that would make -S choke.
+    expect(args[1]).toBe("127.0.0.1:12345");
+  });
 });
 
 describe("formatAttempts", () => {
