@@ -217,3 +217,97 @@ describe("neutron doctor — experimental plugin warnings", () => {
     expect(out).not.toContain("experimental plugins");
   });
 });
+
+describe("neutron doctor — external plugin reporting", () => {
+  /**
+   * Scaffold a minimal external plugin at node_modules/<name>. Returns
+   * nothing — doctor will resolve it through the workspace's resolver.
+   */
+  function writePlugin(name: string, moduleSource: string): void {
+    const pkgDir = join(tmp, "node_modules", name);
+    mkdirSync(pkgDir, { recursive: true });
+    writeFileSync(
+      join(pkgDir, "package.json"),
+      JSON.stringify({ name, version: "0.0.0", type: "module", main: "index.js" }),
+      "utf-8",
+    );
+    writeFileSync(join(pkgDir, "index.js"), moduleSource, "utf-8");
+  }
+
+  test("loaded external plugins appear with a passing status row", () => {
+    writeConfig(
+      [
+        "workspace: test",
+        "plugins:",
+        "  - neutron-plugin-ok",
+        "ecosystems:",
+        "  typescript:",
+        "    manifest: package.json",
+        "    packages:",
+        "      - packages/a",
+      ].join("\n"),
+    );
+    writeTsPackage("packages/a", "a");
+    writePlugin(
+      "neutron-plugin-ok",
+      `export default { type: "ecosystem", name: "zig", manifest: "build.zig", detect: async () => true, execute: async () => ({ success: true, duration: 0, summary: "" }) };`,
+    );
+    initGit();
+
+    const r = run(["doctor"], tmp);
+    const out = cleanOutput(r);
+    expect(r.status).toBe(0);
+    expect(out).toContain("external plugins");
+    expect(out).toContain("neutron-plugin-ok");
+    // The [N] count reflects the number of plugins inside that package
+    expect(out).toMatch(/neutron-plugin-ok\[1\]/);
+  });
+
+  test("failed external plugin load gets a distinct fail row", () => {
+    // No package installed — resolver fails. Doctor should exit
+    // non-zero and surface the package name + error.
+    writeConfig(
+      [
+        "workspace: test",
+        "plugins:",
+        "  - neutron-plugin-does-not-exist",
+        "ecosystems:",
+        "  typescript:",
+        "    manifest: package.json",
+        "    packages:",
+        "      - packages/a",
+      ].join("\n"),
+    );
+    writeTsPackage("packages/a", "a");
+    initGit();
+
+    const r = run(["doctor"], tmp);
+    const out = cleanOutput(r);
+    // A failed plugin is a hard fail — doctor exits non-zero.
+    expect(r.status).not.toBe(0);
+    expect(out).toContain("neutron-plugin-does-not-exist");
+    // Some mention of a resolution error, not just a bare status code.
+    expect(out).toMatch(/Cannot find|not found|ERR_MODULE/);
+  });
+
+  test("workspaces without `plugins:` declared show no external plugin section", () => {
+    writeConfig(
+      [
+        "workspace: test",
+        "ecosystems:",
+        "  typescript:",
+        "    manifest: package.json",
+        "    packages:",
+        "      - packages/a",
+      ].join("\n"),
+    );
+    writeTsPackage("packages/a", "a");
+    initGit();
+
+    const r = run(["doctor"], tmp);
+    const out = cleanOutput(r);
+    expect(r.status).toBe(0);
+    // No plugins section when nothing is declared — no noise.
+    expect(out).not.toContain("external plugins");
+  });
+});
