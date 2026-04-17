@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 import type { WorkspacePackage } from "@/graph/types";
 import type { ValidatedTokens } from "@/plugins/builtin/domain/design/types";
+import { executeOpenapiModelGeneration } from "@/plugins/builtin/ecosystem/php/openapi-codegen";
 import { executeTokenGeneration } from "@/plugins/builtin/ecosystem/php/token-codegen";
 import type { ExecutionContext } from "@/plugins/types";
 
@@ -65,7 +66,7 @@ afterEach(() => {
   rmSync(root, { recursive: true, force: true });
 });
 
-function makeContext(outputDir: string): ExecutionContext {
+function makeContext(outputDir: string, overrides?: Partial<ExecutionContext>): ExecutionContext {
   return {
     graph: { name: "ws", root, packages: new Map(), bridges: [] },
     packageManager: "bun",
@@ -74,6 +75,7 @@ function makeContext(outputDir: string): ExecutionContext {
     outputDir,
     sourceName: "compile-check",
     domainData: makeTokens(),
+    ...overrides,
   };
 }
 
@@ -86,6 +88,58 @@ describe("php codegen compile-check — tokens", () => {
     expect(result.success).toBe(true);
 
     const lint = spawnSync("php", ["-l", join(outDir, "src", "Tokens.php")], {
+      encoding: "utf-8",
+      timeout: 10_000,
+    });
+    if (lint.status !== 0) {
+      throw new Error(
+        `php -l failed (exit ${String(lint.status)}):\n${lint.stdout ?? ""}\n${lint.stderr ?? ""}`,
+      );
+    }
+    expect(lint.status).toBe(0);
+  }, 15_000);
+});
+
+describe("php codegen compile-check — openapi models", () => {
+  test.skipIf(!phpAvailable)("generated Models.php parses under `php -l`", async () => {
+    const artifactPath = "openapi.json";
+    writeFileSync(
+      join(root, artifactPath),
+      JSON.stringify({
+        openapi: "3.1.0",
+        components: {
+          schemas: {
+            User: {
+              type: "object",
+              properties: {
+                id: { type: "string" },
+                age: { type: "integer" },
+                active: { type: "boolean" },
+              },
+              required: ["id"],
+            },
+            Order: {
+              type: "object",
+              properties: {
+                total: { type: "number" },
+                items: { type: "array", items: { type: "string" } },
+              },
+            },
+          },
+        },
+      }),
+      "utf-8",
+    );
+
+    const outDir = join(root, "out");
+    const result = await executeOpenapiModelGeneration(
+      makePkg(),
+      root,
+      makeContext(outDir, { artifactPath }),
+    );
+    expect(result.success).toBe(true);
+
+    const lint = spawnSync("php", ["-l", join(outDir, "src", "Models.php")], {
       encoding: "utf-8",
       timeout: 10_000,
     });

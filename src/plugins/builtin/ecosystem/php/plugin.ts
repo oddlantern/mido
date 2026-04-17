@@ -10,6 +10,7 @@ import type {
 } from "@/plugins/types";
 import { STANDARD_ACTIONS } from "@/plugins/types";
 import { runCommand } from "@/process";
+import { executeOpenapiModelGeneration } from "@/plugins/builtin/ecosystem/php/openapi-codegen";
 import { executeSchemaGeneration } from "@/plugins/builtin/ecosystem/php/schema-codegen";
 import { executeTokenGeneration } from "@/plugins/builtin/ecosystem/php/token-codegen";
 
@@ -117,6 +118,9 @@ export const phpPlugin: EcosystemPlugin = {
           : resolveVendorBin("phpunit", cwd);
         return runCommand(bin, [], cwd);
       }
+
+      case "generate-openapi-php":
+        return executeOpenapiModelGeneration(pkg, root, _context);
 
       case "generate-design-tokens-php":
         return executeTokenGeneration(pkg, root, _context);
