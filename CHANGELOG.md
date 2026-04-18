@@ -4,109 +4,109 @@
 
 ### Bug Fixes
 
-- **plugins:** wire external plugins through every command; declare API stable ([436b77c](https://github.com/oddlantern/neutron/commit/436b77c31c609bc4e34b312d2ad3fbe08dbce5e1))
+- **plugins:** wire external plugins through every command; declare API stable ([c3c5b20](https://github.com/oddlantern/neutron/commit/c3c5b2031c609bc4e34b312d2ad3fbe08dbce5e1))
 
 ### Maintenance
 
-- finish 0.2 scope — plugin authoring docs, README update, gitignore schema.json, dependabot, doctor test ([778d08f](https://github.com/oddlantern/neutron/commit/778d08ff00112e26d113c1b073e3625d96e9a79c))
+- finish 0.2 scope — plugin authoring docs, README update, gitignore schema.json, dependabot, doctor test ([ad84261](https://github.com/oddlantern/neutron/commit/ad84261f00112e26d113c1b073e3625d96e9a79c))
 
 ## [0.2.0](https://github.com/oddlantern/neutron/compare/v0.1.7...v0.2.0) (2026-04-17)
 
 ### Features
 
-- **plugins:** external plugin loading via neutron.yml plugins field ([03bf9de](https://github.com/oddlantern/neutron/commit/03bf9dea90203776ff2d1d21f5f903a8c83e6dd6))
+- **plugins:** external plugin loading via neutron.yml plugins field ([4b3c487](https://github.com/oddlantern/neutron/commit/4b3c487a90203776ff2d1d21f5f903a8c83e6dd6))
 
 ### Maintenance
 
-- **repo:** add GitHub templates, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY ([ddae2c5](https://github.com/oddlantern/neutron/commit/ddae2c525e0bc4c79458e214f389773632144a04))
+- **repo:** add GitHub templates, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY ([0399f99](https://github.com/oddlantern/neutron/commit/0399f9925e0bc4c79458e214f389773632144a04))
 
 ## [0.1.7](https://github.com/oddlantern/neutron/compare/v0.1.6...v0.1.7) (2026-04-17)
 
 ### Features
 
-- **plugins:** PHP design token codegen ([4a72a0d](https://github.com/oddlantern/neutron/commit/4a72a0d3ff60a27e86d71fc3276165cbeee0726a))
-- **plugins:** PHP OpenAPI models codegen — types only by convention ([c96bd18](https://github.com/oddlantern/neutron/commit/c96bd18a4e3a85c08afc585fd526c402e1279b9c))
-- **plugins:** symfony + nelmio adapter for PHP OpenAPI export ([6e19314](https://github.com/oddlantern/neutron/commit/6e193148fb9026bc5e53493d90df5f4416e9ee23))
+- **plugins:** PHP design token codegen ([7f9dbfd](https://github.com/oddlantern/neutron/commit/7f9dbfd3ff60a27e86d71fc3276165cbeee0726a))
+- **plugins:** PHP OpenAPI models codegen — types only by convention ([d8ae38b](https://github.com/oddlantern/neutron/commit/d8ae38ba4e3a85c08afc585fd526c402e1279b9c))
+- **plugins:** symfony + nelmio adapter for PHP OpenAPI export ([5347d7b](https://github.com/oddlantern/neutron/commit/5347d7b8fb9026bc5e53493d90df5f4416e9ee23))
 
 ## [0.1.6](https://github.com/oddlantern/neutron/compare/v0.1.5...v0.1.6) (2026-04-17)
 
 ### Features
 
-- **plugins:** Go design token codegen ([e85f123](https://github.com/oddlantern/neutron/commit/e85f123e6d5335680e7d0aaa0cd9ee02396c9890))
-- **plugins:** Go OpenAPI models codegen — types only by convention ([99c6391](https://github.com/oddlantern/neutron/commit/99c63913e667220e3a3f04af96d11dd0484359d4))
-- **plugins:** huma framework adapter for Go OpenAPI export ([a74f408](https://github.com/oddlantern/neutron/commit/a74f40876c8a69a0ea7382f207b7fc35aa1db916))
+- **plugins:** Go design token codegen ([19b7c77](https://github.com/oddlantern/neutron/commit/19b7c77e6d5335680e7d0aaa0cd9ee02396c9890))
+- **plugins:** Go OpenAPI models codegen — types only by convention ([6bb9a21](https://github.com/oddlantern/neutron/commit/6bb9a213e667220e3a3f04af96d11dd0484359d4))
+- **plugins:** huma framework adapter for Go OpenAPI export ([a300b55](https://github.com/oddlantern/neutron/commit/a300b5576c8a69a0ea7382f207b7fc35aa1db916))
 
 ## [0.1.5](https://github.com/oddlantern/neutron/compare/v0.1.4...v0.1.5) (2026-04-17)
 
 ### Documentation
 
-- rewrite CLAUDE.md as principles, drop file-tree enumeration ([9d3e89a](https://github.com/oddlantern/neutron/commit/9d3e89a2a15ad39842f5621208286f0ad7861440))
+- rewrite CLAUDE.md as principles, drop file-tree enumeration ([2d509d5](https://github.com/oddlantern/neutron/commit/2d509d52a15ad39842f5621208286f0ad7861440))
 
 ## [0.1.4](https://github.com/oddlantern/neutron/compare/v0.1.3...v0.1.4) (2026-04-17)
 
 ### Features
 
-- **plugins:** axum + utoipa framework adapter for Rust OpenAPI export ([1205037](https://github.com/oddlantern/neutron/commit/1205037a451f2a695987a24f17171a01d7ac9cbc))
-- **plugins:** rust design token codegen ([1565383](https://github.com/oddlantern/neutron/commit/15653832a00915ae1cf32f25d2a94c37829331a2))
-- **plugins:** rust OpenAPI models codegen — types only by convention ([54b3d79](https://github.com/oddlantern/neutron/commit/54b3d79490979495a388e59c8415c936b4f20aa1))
+- **plugins:** axum + utoipa framework adapter for Rust OpenAPI export ([f3e8564](https://github.com/oddlantern/neutron/commit/f3e8564a451f2a695987a24f17171a01d7ac9cbc))
+- **plugins:** rust design token codegen ([109bced](https://github.com/oddlantern/neutron/commit/109bced2a00915ae1cf32f25d2a94c37829331a2))
+- **plugins:** rust OpenAPI models codegen — types only by convention ([3b19851](https://github.com/oddlantern/neutron/commit/3b19851490979495a388e59c8415c936b4f20aa1))
 
 ## [0.1.3](https://github.com/oddlantern/neutron/compare/v0.1.2...v0.1.3) (2026-04-17)
 
 ### Bug Fixes
 
-- **ci:** upgrade npm for OIDC trusted-publisher auth ([e6dea8e](https://github.com/oddlantern/neutron/commit/e6dea8eb2e09e1c5bde4aea5c317320e135c86f7))
+- **ci:** upgrade npm for OIDC trusted-publisher auth ([6df05b1](https://github.com/oddlantern/neutron/commit/6df05b1b2e09e1c5bde4aea5c317320e135c86f7))
 
 ## [0.1.2](https://github.com/oddlantern/neutron/compare/v0.1.1...v0.1.2) (2026-04-17)
 
 ### Bug Fixes
 
-- **ci:** skip npm lifecycle scripts on publish — CI already ran them ([93901e6](https://github.com/oddlantern/neutron/commit/93901e6aadf85561b5a465631b92f8ea13e4e100))
+- **ci:** skip npm lifecycle scripts on publish — CI already ran them ([b1c36ba](https://github.com/oddlantern/neutron/commit/b1c36baaadf85561b5a465631b92f8ea13e4e100))
 
 ## [0.1.1](https://github.com/oddlantern/neutron/compare/v0.1.0...v0.1.1) (2026-04-17)
 
 ### Features
 
-- **cli:** surface experimental plugins in doctor + init ([b2c50dd](https://github.com/oddlantern/neutron/commit/b2c50dd9e8d336ec2291584de56f4a96124be77c))
-- **plugins:** add experimental flag; wire python tool resolution chain ([d025893](https://github.com/oddlantern/neutron/commit/d0258939b21b605efb591b950028def909a8c469))
-- **plugins:** FastAPI adapter for Python OpenAPI export ([c265514](https://github.com/oddlantern/neutron/commit/c265514b50dd6bbb1221f2fcb333aef72a12afad))
-- **plugins:** python design token codegen ([6a46342](https://github.com/oddlantern/neutron/commit/6a463423b8f23b8d251d4523c4e1dfe49eb38f40))
-- **plugins:** python OpenAPI client codegen via openapi-python-client ([fa78d1b](https://github.com/oddlantern/neutron/commit/fa78d1b0a3d477dce4afc7917db62b0a55a0b038))
+- **cli:** surface experimental plugins in doctor + init ([29c496a](https://github.com/oddlantern/neutron/commit/29c496a9e8d336ec2291584de56f4a96124be77c))
+- **plugins:** add experimental flag; wire python tool resolution chain ([2b8a54e](https://github.com/oddlantern/neutron/commit/2b8a54e9b21b605efb591b950028def909a8c469))
+- **plugins:** FastAPI adapter for Python OpenAPI export ([8b7ac7f](https://github.com/oddlantern/neutron/commit/8b7ac7fb50dd6bbb1221f2fcb333aef72a12afad))
+- **plugins:** python design token codegen ([ebd631b](https://github.com/oddlantern/neutron/commit/ebd631b3b8f23b8d251d4523c4e1dfe49eb38f40))
+- **plugins:** python OpenAPI client codegen via openapi-python-client ([e3374e4](https://github.com/oddlantern/neutron/commit/e3374e40a3d477dce4afc7917db62b0a55a0b038))
 
 ## 0.1.0 (2026-04-17)
 
 ### Features
 
-- **check:** add --fix flow with mido.lock and interactive version resolution ([1277919](https://github.com/oddlantern/neutron/commit/12779196c5cc17cb00bcd8cdb35397879859f3ec))
+- **check:** add --fix flow with neutron.lock and interactive version resolution ([1277919](https://github.com/oddlantern/neutron/commit/12779196c5cc17cb00bcd8cdb35397879859f3ec))
 - **cli:** add --dry-run support across generate, rename, install, upgrade (v1.3.0) ([a743788](https://github.com/oddlantern/neutron/commit/a7437881f83c9e08494cf4d243adb39d70f52e60))
 - **cli:** add init, install, commit-msg commands and bridge rename ([f4b7b67](https://github.com/oddlantern/neutron/commit/f4b7b673d6236dbed14affe76de1276c79afca89))
 - **cli:** add lint, fmt, build, and pre-commit commands ([ef715bd](https://github.com/oddlantern/neutron/commit/ef715bd1545796bf67bf30c79e2902205154e4f6))
 - **cli:** replace readline with @clack/prompts, add init reconciliation and banner ([f99d1d3](https://github.com/oddlantern/neutron/commit/f99d1d31ad51416be53b192efab39cd05d201503))
-- **config:** absorb oxlint and oxfmt configuration into mido.yml ([0789324](https://github.com/oddlantern/neutron/commit/0789324748efb1cd396265523e7c8f35ffc050a5))
+- **config:** absorb oxlint and oxfmt configuration into neutron.yml ([0789324](https://github.com/oddlantern/neutron/commit/0789324748efb1cd396265523e7c8f35ffc050a5))
 - **config:** add lint/format config schemas for Python, Rust, Go, PHP ([be3be00](https://github.com/oddlantern/neutron/commit/be3be0006b3dcd8da17d6b9ff5a5673952e76a49))
 - **config:** auto-migration pipeline for config schema changes ([432a237](https://github.com/oddlantern/neutron/commit/432a237d90e48f6c7b91e4899e6b8a1377e7b924))
 - **config:** ecosystem-centric lint/format config + JSON schema ([744f8ed](https://github.com/oddlantern/neutron/commit/744f8edef7fc2b543a5fbf6070e890719bc74523))
 - configurable hooks, deprecation lifecycle, HSL colors (v0.5.0) ([8b00291](https://github.com/oddlantern/neutron/commit/8b00291aac8e4c2bbd34ecb71eadf01b241f5a1b))
 - **design:** rewrite token schema from NextSaga spec ([f54f9b9](https://github.com/oddlantern/neutron/commit/f54f9b97aa04c7d76b62627435c6eddb950c5c6f))
-- **dev:** reload config on mido.yml change, prompt for watch paths in init ([4fc0823](https://github.com/oddlantern/neutron/commit/4fc0823336ddd6051955809ed1454b4f4dba4773))
+- **dev:** reload config on neutron.yml change, prompt for watch paths in init ([4fc0823](https://github.com/oddlantern/neutron/commit/4fc0823336ddd6051955809ed1454b4f4dba4773))
 - generate byKey lookup on theme extensions, non-nullable return (v1.0.1) ([ec3e96d](https://github.com/oddlantern/neutron/commit/ec3e96db330d0146697892d512c133b4fcf5386f))
 - **init:** add commented YAML output, JSON schema, and tab-completing artifact prompt ([ddcceb7](https://github.com/oddlantern/neutron/commit/ddcceb77c39258e2a0ba34b0dd8f81b70e453378))
 - **init:** add manual bridge prompt and Husky/commitlint cleanup ([83d8983](https://github.com/oddlantern/neutron/commit/83d89832c9c4a5549f098228f874e6652abc5589))
-- initial mido PoC — cross-ecosystem workspace checker ([90e1fb0](https://github.com/oddlantern/neutron/commit/90e1fb0cc0dd2426b028971677118df41c13b6f1))
+- initial neutron PoC — cross-ecosystem workspace checker ([de781fa](https://github.com/oddlantern/neutron/commit/de781facc0dd2426b028971677118df41c13b6f1))
 - **init:** replace watch path text input with select menu and file browser ([62ce6cd](https://github.com/oddlantern/neutron/commit/62ce6cd1dc666ebde18541f7b6aeb49467510556))
 - **init:** show plugin watch suggestion in modify flow, preserve current paths ([499acf8](https://github.com/oddlantern/neutron/commit/499acf8bb9f58aaef0325a6140d157cb1aa1ba5a))
-- mido generate, outputDir convention, build skips apps (v0.6.0) ([3732526](https://github.com/oddlantern/neutron/commit/373252628e43922fb1f59a7d05b1fa1265157e8f))
-- mido.lock V2 with integrity hashing, V1 migration, and 80% test coverage ([30e589a](https://github.com/oddlantern/neutron/commit/30e589a6a0b9886e8f4760eea246801fa8961d98))
+- neutron generate, outputDir convention, build skips apps (v0.6.0) ([3732526](https://github.com/oddlantern/neutron/commit/373252628e43922fb1f59a7d05b1fa1265157e8f))
+- neutron.lock V2 with integrity hashing, V1 migration, and 80% test coverage ([30e589a](https://github.com/oddlantern/neutron/commit/30e589a6a0b9886e8f4760eea246801fa8961d98))
 - **plugins,rename,assets:** reorganize plugin architecture, add assets domain, rename command (v1.2.0) ([1fa1057](https://github.com/oddlantern/neutron/commit/1fa1057ed754cd1b2aad52398f1a39b633d804ad))
-- **plugins:** add mido-design domain plugin for design token generation ([5afa6ed](https://github.com/oddlantern/neutron/commit/5afa6eda1816dc70af5f074a2613972bd1a6ad71))
+- **plugins:** add design domain plugin for design token generation ([5afa6ed](https://github.com/oddlantern/neutron/commit/5afa6eda1816dc70af5f074a2613972bd1a6ad71))
 - **plugins:** add pipeline steps, watch path suggestions, and styled init outro ([be97007](https://github.com/oddlantern/neutron/commit/be97007ac03f28632ef7706defb00a33f6136e73))
-- **plugins:** add plugin architecture and mido dev watcher ([f8f3bc4](https://github.com/oddlantern/neutron/commit/f8f3bc47c0dd007816d5eb9b85a7e81d8c70cd16))
+- **plugins:** add plugin architecture and neutron dev watcher ([f8f3bc4](https://github.com/oddlantern/neutron/commit/f8f3bc47c0dd007816d5eb9b85a7e81d8c70cd16))
 - **plugins:** add Python, Rust, Go, PHP ecosystems + schema domain + format-aware design bridges ([fa4a461](https://github.com/oddlantern/neutron/commit/fa4a461462d0d9e39ecbce1ccf48d30b9431689f))
 - **plugins:** built-in OpenAPI spec normalizer, bridge exclude config (v1.5.0) ([bcf221f](https://github.com/oddlantern/neutron/commit/bcf221f871c63b78a3829e3cba9350158cbe55b7))
 - **plugins:** bundle oxlint and oxfmt as direct dependencies ([229814b](https://github.com/oddlantern/neutron/commit/229814bade740fe3e8e74dec7c5d033e021c7a39))
 - **plugins:** centralize file resolution for lint and format ([51dce68](https://github.com/oddlantern/neutron/commit/51dce68b101dc9c943c8fcbfffc2cc08b2a85759))
 - **plugins:** framework adapters for zero-config OpenAPI spec export ([0967b98](https://github.com/oddlantern/neutron/commit/0967b982171428d61496d62ac3b21ad8f250ad97))
 - **plugins:** generate full M3 widget theme from design tokens (v1.4.0) ([7fcb95d](https://github.com/oddlantern/neutron/commit/7fcb95dfbc1ad8c2cc781684b080a6462adba9f2))
-- **plugins:** verbose export diagnostics and --verbose flag for mido dev ([8760134](https://github.com/oddlantern/neutron/commit/87601342f34a9adb6553235d5941ee4fc77341c3))
+- **plugins:** verbose export diagnostics and --verbose flag for neutron dev ([8760134](https://github.com/oddlantern/neutron/commit/87601342f34a9adb6553235d5941ee4fc77341c3))
 - progressive outdated analysis, upgrade command, diagnostic system (v1.1.0) ([3ada237](https://github.com/oddlantern/neutron/commit/3ada237fe3ae720630b0893f0ee7feab8bf2806a))
 - pure ecosystem matching, no consumer I/O, scanner excludes generated/ (v1.0.0) ([5bb1845](https://github.com/oddlantern/neutron/commit/5bb184515ffc81b8afad594b80fb10d1fd21dd3b))
 - source-based naming, openapi outputDir, 7 UX fixes, 27 new tests (v0.8.0) ([be53c34](https://github.com/oddlantern/neutron/commit/be53c3458c94e733ac7429a17b80f348b46d924b))
@@ -114,8 +114,8 @@
 
 ### Bug Fixes
 
-- always auto-migrate old config formats, graceful recovery on broken mido.yml (v0.7.1) ([dd20631](https://github.com/oddlantern/neutron/commit/dd206312a933157e4fb6b86f19b1fefd03fdfb4b))
-- **config:** complete lint/format config migration in mido init ([234f261](https://github.com/oddlantern/neutron/commit/234f261ab0cc21e3d02299acef1becbf6f02f43d))
+- always auto-migrate old config formats, graceful recovery on broken neutron.yml (v0.7.1) ([dd20631](https://github.com/oddlantern/neutron/commit/dd206312a933157e4fb6b86f19b1fefd03fdfb4b))
+- **config:** complete lint/format config migration in neutron init ([234f261](https://github.com/oddlantern/neutron/commit/234f261ab0cc21e3d02299acef1becbf6f02f43d))
 - **config:** use z.unknown() for lint rule values ([50ce154](https://github.com/oddlantern/neutron/commit/50ce154e39c73f6197fea6ef3af1c40562fb24b4))
 - correct from/to/via migration semantics, remove oxlint/oxfmt/husky/commitlint deps during cleanup (v0.7.2) ([6ef3126](https://github.com/oddlantern/neutron/commit/6ef31267da5a1aaf8049243f65aaccb0d8ae82da))
 - **dev:** fix chokidar not detecting file changes, add --verbose flag and tests ([ea493c1](https://github.com/oddlantern/neutron/commit/ea493c1ce77623dbe21acc8652ea434da4649c34))
@@ -149,7 +149,7 @@
 
 - address all review findings from v0.0.32 ([07e38ee](https://github.com/oddlantern/neutron/commit/07e38ee951629cd795425f6f77139cc115a2ec3c))
 - address analysis findings — eliminate as casts, centralize ANSI, add 90 tests ([3f9dc04](https://github.com/oddlantern/neutron/commit/3f9dc042bd812d267a705413eb695dbea711d5c4))
-- **cli:** eradicate legacy mido references; clear lint; format ([064c0d8](https://github.com/oddlantern/neutron/commit/064c0d82e71f8d6d145a345e49a7ea3527b3a1b2))
+- **cli:** eradicate legacy references; clear lint; format ([064c0d8](https://github.com/oddlantern/neutron/commit/064c0d82e71f8d6d145a345e49a7ea3527b3a1b2))
 - **cli:** read version from package.json at runtime ([9197aeb](https://github.com/oddlantern/neutron/commit/9197aeb46cfc7faf7c99ff37fb0cdbc11b1b088c))
 - derive JSON schema from Zod, no more hardcoded bridge/config shapes (v0.7.5) ([e9885b6](https://github.com/oddlantern/neutron/commit/e9885b6ab065352a53c4a6ca14f6c0235b2b17f0))
 - extract bridge-runner, server-boot, token-theme modules ([3af5a71](https://github.com/oddlantern/neutron/commit/3af5a71808d03bb1797c3232dac3712bd870a004))
