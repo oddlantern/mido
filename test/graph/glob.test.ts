@@ -102,4 +102,16 @@ describe("expandPackageGlobs", () => {
     const root = makeTempDir();
     expect(expandPackageGlobs([], root)).toEqual([]);
   });
+
+  test("expands ** recursive globs", () => {
+    const root = makeTempDir();
+    mkdirSync(join(root, "services", "api", "v1"), { recursive: true });
+    mkdirSync(join(root, "services", "worker"), { recursive: true });
+    mkdirSync(join(root, "services", "api", "v2"), { recursive: true });
+
+    const result = expandPackageGlobs(["services/**"], root);
+    expect(new Set(result)).toEqual(
+      new Set(["services/api", "services/api/v1", "services/api/v2", "services/worker"]),
+    );
+  });
 });
