@@ -30,6 +30,26 @@ function zodToJsonSchema(schema: z.ZodTypeAny): JsonSchema {
   const def = schema._def;
   const typeName: string = def.typeName;
 
+  const result = computeSchema(schema, def, typeName);
+
+  // .describe(text) sets schema.description directly on the instance (Zod 3 behaviour).
+  // Attach it to the JSON-schema output after computing the result for any typeName.
+  if (
+    "description" in schema &&
+    typeof schema.description === "string" &&
+    !("description" in result)
+  ) {
+    result["description"] = schema.description;
+  }
+
+  return result;
+}
+
+function computeSchema(
+  schema: z.ZodTypeAny,
+  def: z.ZodTypeAny["_def"],
+  typeName: string,
+): JsonSchema {
   switch (typeName) {
     case 'ZodString':
       return { type: 'string' };

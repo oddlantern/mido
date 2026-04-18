@@ -99,7 +99,24 @@ ecosystems:
     manifest: pubspec.yaml
     packages:
       - apps/flutter
+```
 
+The `packages:` field accepts full glob grammar:
+
+```yaml
+ecosystems:
+  typescript:
+    manifest: package.json
+    packages:
+      - "apps/*"                    # direct children of apps/
+      - "packages/**"               # recursive under packages/
+      - "!packages/experimental-*"  # exclude experimental ones
+      - "{tools,scripts}/*"         # multiple roots at once
+```
+
+Literal paths (`"packages/core"`) continue to work — they are a valid subset of the grammar.
+
+```yaml
 bridges:
   - source: apps/server
     consumers: [apps/web, apps/flutter]
