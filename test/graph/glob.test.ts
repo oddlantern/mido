@@ -128,4 +128,16 @@ describe("expandPackageGlobs", () => {
     );
     expect(new Set(result)).toEqual(new Set(["packages/core", "packages/ui"]));
   });
+
+  test("expands brace alternatives {a,b}/*", () => {
+    const root = makeTempDir();
+    mkdirSync(join(root, "apps", "web"), { recursive: true });
+    mkdirSync(join(root, "tools", "cli"), { recursive: true });
+    mkdirSync(join(root, "tools", "doctor"), { recursive: true });
+
+    const result = expandPackageGlobs(["{apps,tools}/*"], root);
+    expect(new Set(result)).toEqual(
+      new Set(["apps/web", "tools/cli", "tools/doctor"]),
+    );
+  });
 });
