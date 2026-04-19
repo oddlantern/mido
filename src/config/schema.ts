@@ -3,7 +3,14 @@ import { z } from "zod";
 const ecosystemSchema = z.object({
   manifest: z.string(),
   lockfile: z.string().optional(),
-  packages: z.array(z.string()).min(1),
+  packages: z
+    .array(z.string())
+    .min(1)
+    .describe(
+      "Package paths. Accepts literal paths (packages/core), single-level globs (apps/*), " +
+        "recursive globs (services/**), exclusions (!packages/experimental-*), and brace " +
+        "expansion ({tools,scripts}/*)",
+    ),
 });
 
 /** Supported design token output formats (autocomplete via JSON schema). */

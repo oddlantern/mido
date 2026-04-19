@@ -1,8 +1,8 @@
-import { mkdirSync, mkdtempSync, realpathSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 
 import { expandPackageGlobs } from "../../src/graph/glob.js";
 
@@ -44,17 +44,28 @@ describe("expandPackageGlobs", () => {
 
   test("returns empty for glob with no matches", () => {
     const root = makeTempDir();
-    // No subdirectories exist under apps/
-
-    const result = expandPackageGlobs(["apps/*"], root);
-    expect(result).toEqual([]);
+    // No subdirectories exist under apps/ — new contract: emits a warning on zero match.
+    const warnSpy = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const result = expandPackageGlobs(["apps/*"], root);
+      expect(result).toEqual([]);
+      expect(warnSpy.mock.calls.length).toBeGreaterThan(0);
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   test("returns empty when parent directory does not exist", () => {
     const root = makeTempDir();
-
-    const result = expandPackageGlobs(["nonexistent/*"], root);
-    expect(result).toEqual([]);
+    // Non-existent parent is a zero-match — new contract: emits a warning.
+    const warnSpy = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const result = expandPackageGlobs(["nonexistent/*"], root);
+      expect(result).toEqual([]);
+      expect(warnSpy.mock.calls.length).toBeGreaterThan(0);
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   test("skips non-directory matches", () => {
@@ -62,7 +73,6 @@ describe("expandPackageGlobs", () => {
     mkdirSync(join(root, "apps"), { recursive: true });
     mkdirSync(join(root, "apps", "server"), { recursive: true });
     // Create a file (not directory) — should be skipped
-    const { writeFileSync } = require("node:fs");
     writeFileSync(join(root, "apps", "README.md"), "hello");
 
     const result = expandPackageGlobs(["apps/*"], root);
@@ -101,5 +111,78 @@ describe("expandPackageGlobs", () => {
   test("handles empty pattern list", () => {
     const root = makeTempDir();
     expect(expandPackageGlobs([], root)).toEqual([]);
+  });
+
+  test("expands ** recursive globs", () => {
+    const root = makeTempDir();
+    mkdirSync(join(root, "services", "api", "v1"), { recursive: true });
+    mkdirSync(join(root, "services", "worker"), { recursive: true });
+    mkdirSync(join(root, "services", "api", "v2"), { recursive: true });
+
+    const result = expandPackageGlobs(["services/**"], root);
+    // tinyglobby's ** matches zero or more path segments, so "services" itself is included.
+    expect(new Set(result)).toEqual(
+      new Set(["services", "services/api", "services/api/v1", "services/api/v2", "services/worker"]),
+    );
+  });
+
+  test("excludes patterns prefixed with !", () => {
+    const root = makeTempDir();
+    mkdirSync(join(root, "packages", "core"), { recursive: true });
+    mkdirSync(join(root, "packages", "ui"), { recursive: true });
+    mkdirSync(join(root, "packages", "experimental-alpha"), { recursive: true });
+    mkdirSync(join(root, "packages", "experimental-beta"), { recursive: true });
+
+    const result = expandPackageGlobs(
+      ["packages/*", "!packages/experimental-*"],
+      root,
+    );
+    expect(new Set(result)).toEqual(new Set(["packages/core", "packages/ui"]));
+  });
+
+  test("expands brace alternatives {a,b}/*", () => {
+    const root = makeTempDir();
+    mkdirSync(join(root, "apps", "web"), { recursive: true });
+    mkdirSync(join(root, "tools", "cli"), { recursive: true });
+    mkdirSync(join(root, "tools", "doctor"), { recursive: true });
+
+    const result = expandPackageGlobs(["{apps,tools}/*"], root);
+    expect(new Set(result)).toEqual(
+      new Set(["apps/web", "tools/cli", "tools/doctor"]),
+    );
+  });
+
+  test("emits a warning when a glob matches zero packages", () => {
+    const root = makeTempDir();
+    mkdirSync(join(root, "apps", "server"), { recursive: true });
+
+    const warnSpy = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const result = expandPackageGlobs(["apps/*", "nonexistent/*"], root);
+      expect(result).toEqual(["apps/server"]);
+      const calls = warnSpy.mock.calls.map((c) => c.join(" "));
+      expect(calls.some((line) => line.includes("nonexistent/*"))).toBe(true);
+      expect(calls.some((line) => line.toLowerCase().includes("no packages"))).toBe(
+        true,
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  test("warns when a literal path does not exist", () => {
+    const root = makeTempDir();
+
+    const warnSpy = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const result = expandPackageGlobs(["packages/not-yet-created"], root);
+      expect(result).toEqual([]);
+      const calls = warnSpy.mock.calls.map((c) => c.join(" "));
+      expect(
+        calls.some((line) => line.includes("packages/not-yet-created")),
+      ).toBe(true);
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 });
