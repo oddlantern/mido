@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, realpathSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -73,7 +73,6 @@ describe("expandPackageGlobs", () => {
     mkdirSync(join(root, "apps"), { recursive: true });
     mkdirSync(join(root, "apps", "server"), { recursive: true });
     // Create a file (not directory) — should be skipped
-    const { writeFileSync } = require("node:fs");
     writeFileSync(join(root, "apps", "README.md"), "hello");
 
     const result = expandPackageGlobs(["apps/*"], root);
